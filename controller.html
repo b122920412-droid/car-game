@@ -3,28 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 賽車體感遙控器</title>
+    <title>AI 體感遙控器</title>
     <style>
-        body { background: #111; color: white; text-align: center; font-family: sans-serif; margin: 0; touch-action: manipulation; overflow: hidden; }
-        #status-btn { padding: 20px; background: #28a745; color: white; border: none; border-radius: 15px; width: 85%; margin-top: 40px; font-size: 20px; font-weight: bold; }
-        #val { font-size: 80px; color: #00ff00; margin: 40px 0; font-family: monospace; }
-        .hint { color: #888; font-size: 16px; padding: 0 20px; }
-        .debug { font-size: 12px; color: #444; margin-top: 20px; }
+        body { background: #111; color: white; text-align: center; font-family: sans-serif; margin: 0; padding-top: 50px; }
+        #start { padding: 25px; background: #28a745; color: white; border: none; border-radius: 20px; width: 80%; font-size: 24px; font-weight: bold; }
+        #angle { font-size: 80px; color: #00ff00; margin: 50px 0; }
+        .hint { color: #888; padding: 20px; }
     </style>
 </head>
 <body>
     <h2>AI 跨裝置控制端</h2>
-    <p class="hint">請水平拿持手機，左右傾斜來切換車道</p>
-    
-    <button id="status-btn" onclick="requestSensor()">啟動體感感測器</button>
-    
-    <div id="val">0°</div>
+    <p class="hint">請水平拿穩手機，點擊下方啟動</p>
+    <button id="start" onclick="init()">啟動感測器</button>
+    <div id="angle">0°</div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // Firebase 配置 (與 index.html 一致)
         const firebaseConfig = {
             apiKey: "AIzaSyC2-YD5-cdNaPf7-5Hfzjj_yGOHBaLWN6s",
             authDomain: "ai-car-game.firebaseapp.com",
@@ -36,39 +32,20 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        const tiltRef = ref(db, 'car/tilt');
 
-        // 傳送數據到雲端
-        const sendData = (v) => set(tiltRef, v);
-
-        // 啟動感測器權限 (iOS 必備)
-        window.requestSensor = () => {
+        window.init = () => {
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission()
-                    .then(permissionState => {
-                        if (permissionState === 'granted') {
-                            startListening();
-                        } else {
-                            alert("需要感測器權限才能操作喔！");
-                        }
-                    })
-                    .catch(console.error);
-            } else {
-                startListening();
-            }
+                DeviceOrientationEvent.requestPermission().then(s => { if(s==='granted') listen(); });
+            } else { listen(); }
         };
 
-        function startListening() {
-            document.getElementById('status-btn').innerText = "感測中...";
-            document.getElementById('status-btn').style.background = "#555";
-            
-            window.addEventListener('deviceorientation', (event) => {
-                // gamma 是手機左右傾斜的角度 (-90 到 90)
-                let tilt = Math.round(event.gamma);
-                document.getElementById('val').innerText = tilt + "°";
-                
-                // 傳送傾斜數值
-                sendData(tilt);
+        function listen() {
+            document.getElementById('start').innerText = "感測中...";
+            document.getElementById('start').style.background = "#444";
+            window.addEventListener('deviceorientation', (e) => {
+                let tilt = Math.round(e.gamma);
+                document.getElementById('angle').innerText = tilt + "°";
+                set(ref(db, 'car/tilt'), tilt);
             });
         }
     </script>
