@@ -2,28 +2,39 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>AI 體感 3D 賽車 - 期末專題版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI 體感賽車 - 雙模整合版</title>
     <style>
-        /* 1. 遊戲樣式設置 */
-        html, body { margin: 0; overflow: hidden; height: 100%; background: black; }
-        #ui { position: absolute; top: 20px; left: 20px; color: white; z-index: 100; font-family: sans-serif; }
-        #startBtn { padding: 15px 30px; font-size: 20px; cursor: pointer; background: #0066cc; border: none; color: white; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); font-weight: bold;}
-        #startBtn:hover { background: #0052a3; }
-        #score { margin-top: 15px; font-size: 28px; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
-        canvas { display: block; }
+        html, body { margin: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; }
+        #pc-ui, #mobile-ui { display: none; position: absolute; width: 100%; text-align: center; color: white; z-index: 100; }
+        /* 電腦端樣式 */
+        #pc-ui { top: 20px; }
+        .btn { padding: 15px 30px; font-size: 20px; cursor: pointer; background: #0066cc; border: none; color: white; border-radius: 8px; }
+        /* 手機端樣式 */
+        #mobile-ui { top: 50px; }
+        .sensor-btn { padding: 25px; background: #28a745; color: white; border: none; border-radius: 20px; width: 80%; font-size: 24px; }
+        #angle { font-size: 80px; color: #00ff00; margin: 50px 0; }
     </style>
 </head>
 <body>
-    <div id="ui">
-        <button id="startBtn">開始遊戲 (請先開啟手機遙控器)</button>
-        <div id="score">分數：0</div>
+
+    <div id="pc-ui">
+        <button id="startBtn" class="btn">開始遊戲 (PC 模式：可用鍵盤 ← →)</button>
+        <div id="score" style="font-size: 24px; margin-top: 10px;">分數：0</div>
+    </div>
+
+    <div id="mobile-ui">
+        <h2>AI 手機遙控模式</h2>
+        <button id="sensorBtn" class="sensor-btn">啟動體感控制</button>
+        <div id="angle">0°</div>
+        <p>左右傾斜手機來控制電腦上的賽車</p>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
         // --- Firebase 配置 ---
         const firebaseConfig = {
@@ -34,9 +45,99 @@
             messagingSenderId: "610670474643",
             appId: "1:610670474643:web:5c28d61b9300644fad2466"
         };
-
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
+        const tiltRef = ref(db, 'car/tilt');
 
-        // --- 遊戲全局變數 ---
-        let scene, camera
+        // --- 裝置偵測邏輯 ---
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+        if (isMobile) {
+            setupMobile();
+        } else {
+            setupPC();
+        }
+
+        // ==============================
+        //   手機模式 (遙控器)
+        // ==============================
+        function setupMobile() {
+            document.getElementById('mobile-ui').style.display = 'block';
+            document.getElementById('sensorBtn').onclick = () => {
+                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    DeviceOrientationEvent.requestPermission().then(s => { if(s==='granted') startSensor(); });
+                } else { startSensor(); }
+            };
+        }
+
+        function startSensor() {
+            document.getElementById('sensorBtn').innerText = "連線中...";
+            window.addEventListener('deviceorientation', (e) => {
+                let tilt = Math.round(e.gamma);
+                document.getElementById('angle').innerText = tilt + "°";
+                set(tiltRef, tilt); // 傳送數據到雲端
+            });
+        }
+
+        // ==============================
+        //   電腦模式 (遊戲主體)
+        // ==============================
+        let scene, camera, renderer, car, gameStarted = false, score = 0, obstacles = [], lanes = [-2, 0, 2];
+
+        function setupPC() {
+            document.getElementById('pc-ui').style.display = 'block';
+            
+            // 監聽鍵盤控制 (PC 原生玩法)
+            window.addEventListener('keydown', (e) => {
+                if (!gameStarted || !car) return;
+                if (e.key === 'ArrowLeft') car.position.x = lanes[0];
+                if (e.key === 'ArrowRight') car.position.x = lanes[2];
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') car.position.x = lanes[1];
+            });
+
+            // 監聽雲端數據 (手機遙控玩法)
+            onValue(tiltRef, (snapshot) => {
+                if (!gameStarted || !car) return;
+                const tilt = snapshot.val() || 0;
+                if (tilt < -15) car.position.x = lanes[0];
+                else if (tilt > 15) car.position.x = lanes[2];
+                else car.position.x = lanes[1];
+            });
+
+            document.getElementById('startBtn').onclick = () => {
+                gameStarted = true;
+                document.getElementById('startBtn').style.display = 'none';
+                initGame();
+                animate();
+                setInterval(createObstacle, 1200);
+            };
+        }
+
+        function initGame() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // 車子與路面 (簡化版 3D)
+            car = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 2), new THREE.MeshPhongMaterial({ color: 0x0077ff }));
+            car.position.set(0, 0.3, 2);
+            scene.add(car);
+            
+            const road = new THREE.Mesh(new THREE.PlaneGeometry(10, 2000), new THREE.MeshPhongMaterial({ color: 0x222222 }));
+            road.rotation.x = -Math.PI / 2;
+            scene.add(road);
+
+            scene.add(new THREE.DirectionalLight(0xffffff, 1.2).remove().add(new THREE.AmbientLight(0x404040)));
+            const sun = new THREE.DirectionalLight(0xffffff, 1);
+            sun.position.set(5, 10, 7.5);
+            scene.add(sun);
+
+            camera.position.set(0, 3.5, 8);
+            camera.lookAt(0, 0, 0);
+        }
+
+        function createObstacle() {
+            if (!gameStarted) return;
+            const obs = new THREE.Mesh(new THREE.BoxGeometry(1,
