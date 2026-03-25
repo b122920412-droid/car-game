@@ -4,11 +4,13 @@
     <meta charset="UTF-8">
     <title>AI 體感 3D 賽車 - 期末專題版</title>
     <style>
+        /* 1. 遊戲樣式設置 */
         html, body { margin: 0; overflow: hidden; height: 100%; background: black; }
         #ui { position: absolute; top: 20px; left: 20px; color: white; z-index: 100; font-family: sans-serif; }
-        #startBtn { padding: 15px 30px; font-size: 20px; cursor: pointer; background: #0066cc; border: none; color: white; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        #startBtn { padding: 15px 30px; font-size: 20px; cursor: pointer; background: #0066cc; border: none; color: white; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); font-weight: bold;}
         #startBtn:hover { background: #0052a3; }
-        #score { margin-top: 15px; font-size: 24px; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
+        #score { margin-top: 15px; font-size: 28px; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
+        canvas { display: block; }
     </style>
 </head>
 <body>
@@ -37,37 +39,4 @@
         const db = getDatabase(app);
 
         // --- 遊戲全局變數 ---
-        let scene, camera, renderer, car;
-        let gameStarted = false;
-        let score = 0;
-        let obstacles = [];
-        let lanes = [-2, 0, 2];
-
-        // --- 核心：AI 體感接收與穩定化 ---
-        onValue(ref(db, 'car/tilt'), (snapshot) => {
-            if (!gameStarted || !car) return;
-            const tilt = snapshot.val() || 0;
-            
-            // AI 穩定化邏輯：設定 15 度的數位死區
-            if (tilt < -15) car.position.x = lanes[0]; // 左車道
-            else if (tilt > 15) car.position.x = lanes[2]; // 右車道
-            else car.position.x = lanes[1]; // 中車道
-        });
-
-        // --- 按鈕事件綁定 ---
-        document.getElementById('startBtn').addEventListener('click', () => {
-            if (!gameStarted) {
-                gameStarted = true;
-                document.getElementById('startBtn').style.display = 'none';
-                init();
-                animate();
-                setInterval(createObstacle, 1000);
-            }
-        });
-
-        // --- 3D 遊戲邏輯 ---
-        function init() {
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window
+        let scene, camera
