@@ -3,20 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 體感賽車 - 終極穩定版</title>
+    <title>AI 體感賽車 - 完美操控版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; }
-        /* 介面強制置中 */
-        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; background: #000; }
-        .btn { padding: 25px 60px; font-size: 30px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; box-shadow: 0 10px 30px rgba(0,123,255,0.5); pointer-events: auto; }
-        #scoreDisplay { position: absolute; top: 20px; right: 30px; font-size: 50px; color: #00ff00; font-family: monospace; font-weight: bold; text-shadow: 0 0 20px #00ff00; z-index: 100; display: none; }
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; background: rgba(0,0,0,0.8); }
+        .btn { padding: 25px 60px; font-size: 30px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; box-shadow: 0 10px 30px rgba(0,123,255,0.5); }
+        #scoreDisplay { position: absolute; top: 20px; right: 30px; font-size: 50px; color: #00ff00; font-family: monospace; font-weight: bold; text-shadow: 0 0 20px #00ff00; z-index: 100; }
     </style>
 </head>
 <body>
 
     <div id="overlay">
-        <button id="startBtn" class="btn">開始遊戲</button>
-        <p style="color: #666; margin-top: 20px;">鍵盤 ← → 或 手機體感控制</p>
+        <button id="startBtn" class="btn">開始挑戰</button>
+        <p style="color: #888; margin-top: 20px;">鍵盤 ← → 或是 手機左右傾斜</p>
     </div>
 
     <div id="scoreDisplay">00000</div>
@@ -40,106 +39,101 @@
         };
 
         let scene, camera, renderer, car, gameStarted = false, score = 0, obstacles = [], roadLines = [];
-        let lanes = [-3.5, 0, 3.5], targetX = 0;
+        let lanes = [-3.5, 0, 3.5]; 
+        let currentLaneIndex = 1; // 0:左, 1:中, 2:右
+        let targetX = lanes[1];
 
-        // 啟動按鈕點擊事件
         document.getElementById('startBtn').addEventListener('click', function() {
-            try {
-                const app = initializeApp(firebaseConfig);
-                const db = getDatabase(app);
-                
-                // 監聽手機體感 (擴大中間車道範圍 解決跳格)
-                onValue(ref(db, 'car/tilt'), (snapshot) => {
-                    const tilt = snapshot.val() || 0;
-                    if (tilt < -20) targetX = lanes[0];
-                    else if (tilt > 20) targetX = lanes[2];
-                    else targetX = lanes[1]; // 20度內都算中間
-                });
+            const app = initializeApp(firebaseConfig);
+            const db = getDatabase(app);
+            
+            // 手機控制：自動對應車道
+            onValue(ref(db, 'car/tilt'), (snapshot) => {
+                const tilt = snapshot.val() || 0;
+                if (tilt < -22) currentLaneIndex = 0;
+                else if (tilt > 22) currentLaneIndex = 2;
+                else currentLaneIndex = 1;
+                targetX = lanes[currentLaneIndex];
+            });
 
-                gameStarted = true;
-                document.getElementById('overlay').style.display = 'none';
-                document.getElementById('scoreDisplay').style.display = 'block';
-                document.getElementById('bgm').play();
-                
-                init3D();
-                animate();
+            gameStarted = true;
+            document.getElementById('overlay').style.display = 'none';
+            document.getElementById('bgm').play();
+            init3D();
+            animate();
 
-                // 計分與障礙物
-                setInterval(() => { if(gameStarted) { score++; document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0'); } }, 100);
-                setInterval(createObstacle, 1100);
-
-            } catch (e) {
-                alert("啟動失敗，請重新整理頁面: " + e);
-            }
+            setInterval(() => { if(gameStarted) { score++; document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0'); } }, 100);
+            setInterval(createObstacle, 1100);
         });
 
         function init3D() {
             scene = new THREE.Scene();
-            scene.fog = new THREE.Fog(0x000000, 30, 100);
+            scene.fog = new THREE.Fog(0x000000, 30, 110);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
             // 馬路
-            const road = new THREE.Mesh(new THREE.PlaneGeometry(15, 2000), new THREE.MeshPhongMaterial({ color: 0x1a1a1a }));
+            const road = new THREE.Mesh(new THREE.PlaneGeometry(16, 2000), new THREE.MeshPhongMaterial({ color: 0x1a1a1a }));
             road.rotation.x = -Math.PI / 2;
             scene.add(road);
 
-            // 標線
-            for (let i = 0; i < 50; i++) {
-                const line = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 5), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+            // 分欄線
+            for (let i = 0; i < 60; i++) {
+                const line = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
                 line.rotation.x = -Math.PI / 2;
-                line.position.set(-1.8, 0.02, -i * 20);
+                line.position.set(-1.7, 0.02, -i * 20);
                 scene.add(line);
                 roadLines.push(line);
                 const line2 = line.clone();
-                line2.position.x = 1.8;
+                line2.position.x = 1.7;
                 scene.add(line2);
                 roadLines.push(line2);
             }
 
-            // 精緻車子 (車身 + 駕駛艙 + 輪胎)
+            // 精緻賽車
             car = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 3.5), new THREE.MeshPhongMaterial({ color: 0x007bff }));
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.7, 3.5), new THREE.MeshPhongMaterial({ color: 0x007bff }));
             body.position.y = 0.5;
             car.add(body);
-            const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 1.5), new THREE.MeshPhongMaterial({ color: 0x003399 }));
-            cabin.position.set(0, 1, -0.3);
+            const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 1.6), new THREE.MeshPhongMaterial({ color: 0x003399 }));
+            cabin.position.set(0, 1.1, -0.2);
             car.add(cabin);
-            
-            // 輪胎
-            const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.4, 16);
+            const wheelGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.4, 20);
             const wheelMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
-            [[-1, -1.2], [1, -1.2], [-1, 1.2], [1, 1.2]].forEach(p => {
+            [[-1,-1.2],[1,-1.2],[-1,1.2],[1,1.2]].forEach(p => {
                 const w = new THREE.Mesh(wheelGeo, wheelMat);
                 w.rotation.z = Math.PI/2;
-                w.position.set(p[0]*0.9, 0.4, p[1]);
+                w.position.set(p[0]*1, 0.45, p[1]);
                 car.add(w);
             });
-
             scene.add(car);
             car.position.z = 10;
 
-            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            scene.add(new THREE.AmbientLight(0xffffff, 0.7));
             const sun = new THREE.DirectionalLight(0xffffff, 1);
-            sun.position.set(5, 15, 10);
+            sun.position.set(5, 15, 15);
             scene.add(sun);
 
-            camera.position.set(0, 6, 22);
+            camera.position.set(0, 6, 24);
             camera.lookAt(0, 1, 0);
 
+            // 修正：鍵盤左右切換邏輯
             window.addEventListener('keydown', (e) => {
-                if (e.key === 'ArrowLeft') targetX = lanes[0];
-                if (e.key === 'ArrowRight') targetX = lanes[2];
-                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') targetX = lanes[1];
+                if (e.key === 'ArrowLeft') {
+                    if (currentLaneIndex > 0) currentLaneIndex--;
+                } else if (e.key === 'ArrowRight') {
+                    if (currentLaneIndex < 2) currentLaneIndex++;
+                }
+                targetX = lanes[currentLaneIndex];
             });
         }
 
         function createObstacle() {
             if (!gameStarted) return;
-            const obs = new THREE.Mesh(new THREE.BoxGeometry(2, 1.5, 2), new THREE.MeshPhongMaterial({ color: 0xff4444 }));
-            obs.position.set(lanes[Math.floor(Math.random() * 3)], 0.75, -100);
+            const obs = new THREE.Mesh(new THREE.BoxGeometry(2, 1.5, 2.5), new THREE.MeshPhongMaterial({ color: 0xff4444 }));
+            obs.position.set(lanes[Math.floor(Math.random() * 3)], 0.75, -120);
             scene.add(obs);
             obstacles.push(obs);
         }
@@ -148,23 +142,26 @@
             if (!gameStarted) return;
             requestAnimationFrame(animate);
 
-            // 車子緩動移動 (解決跳格問題)
+            // 平滑移動：車子會滑過中間
             car.position.x += (targetX - car.position.x) * 0.15;
 
             roadLines.forEach(l => {
                 l.position.z += 1.8;
-                if(l.position.z > 40) l.position.z = -800;
+                if(l.position.z > 50) l.position.z = -1000;
             });
 
             obstacles.forEach((obs, i) => {
-                obs.position.z += 1.5;
-                if (Math.abs(car.position.z - obs.position.z) < 2 && Math.abs(car.position.x - obs.position.x) < 1.5) {
+                obs.position.z += 1.6;
+                // 碰撞判定
+                const dx = Math.abs(car.position.x - obs.position.x);
+                const dz = Math.abs(car.position.z - obs.position.z);
+                if (dz < 2.5 && dx < 1.6) {
                     gameStarted = false;
                     document.getElementById('crashSound').play();
                     document.getElementById('bgm').pause();
-                    setTimeout(() => { alert("撞車啦！生存分數: " + score); location.reload(); }, 200);
+                    setTimeout(() => { alert("撞車啦！最終分數: " + score); location.reload(); }, 200);
                 }
-                if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
+                if (obs.position.z > 50) { scene.remove(obs); obstacles.splice(i, 1); }
             });
             renderer.render(scene, camera);
         }
