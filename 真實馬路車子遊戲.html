@@ -2,39 +2,21 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AI 體感賽車 - 精緻豪華版</title>
     <style>
-        html, body { margin: 0; overflow: hidden; height: 100%; background: #000; font-family: 'Segoe UI', sans-serif; }
-        #ui { position: absolute; width: 100%; text-align: center; color: white; z-index: 100; top: 30%; transform: translateY(-50%); }
-        .btn { padding: 20px 40px; font-size: 28px; cursor: pointer; background: linear-gradient(45deg, #ff0055, #ffcc00); border: none; color: white; border-radius: 15px; font-weight: bold; box-shadow: 0 5px 25px rgba(255,0,0,0.4); transition: all 0.2s; }
-        .btn:hover { transform: scale(1.05); box-shadow: 0 8px 30px rgba(255,0,0,0.6); }
-        
-        #scoreContainer { position: absolute; top: 20px; right: 30px; text-align: right; z-index: 150; }
-        #scoreDisplay { font-size: 60px; color: #fff; font-weight: bold; font-family: 'Courier New', monospace; text-shadow: 0 0 15px #ffcc00; }
-        .score-label { font-size: 18px; color: #888; }
-
-        #mobile-ui { position: absolute; width: 100%; top: 50px; text-align: center; color: white; display: none; z-index: 200; }
-        .sensor-btn { padding: 30px; background: #28a745; color: white; border-radius: 20px; width: 85%; font-size: 32px; border: none; font-weight: bold; }
+        html, body { margin: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; }
+        #ui-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; pointer-events: none; }
+        .btn { padding: 20px 40px; font-size: 24px; cursor: pointer; background: linear-gradient(45deg, #0066cc, #00ffcc); border: none; color: white; border-radius: 12px; font-weight: bold; pointer-events: auto; box-shadow: 0 4px 20px rgba(0,255,204,0.3); }
+        #scoreDisplay { position: absolute; top: 20px; right: 30px; font-size: 60px; color: #00ff00; font-family: monospace; font-weight: bold; text-shadow: 0 0 15px #00ff00; z-index: 150; }
     </style>
 </head>
 <body>
 
-    <div id="ui">
-        <button id="startBtn" class="btn">開始挑戰 (精緻音效版)</button>
-        <p style="color: #aaa; margin-top: 20px;">請確保喇叭已開啟</p>
+    <div id="ui-overlay">
+        <button id="startBtn" class="btn">開始遊戲 (鍵盤/手機皆可控)</button>
     </div>
 
-    <div id="scoreContainer">
-        <div class="score-label">SURVIVAL SCORE</div>
-        <div id="scoreDisplay">00000</div>
-    </div>
-
-    <div id="mobile-ui">
-        <h2>AI 手機遙控模式</h2>
-        <button id="sensorBtn" class="sensor-btn">啟動體感控制</button>
-        <p style="color: #aaa; margin-top: 15px;">左右傾斜手機來控制車道</p>
-    </div>
+    <div id="scoreDisplay">00000</div>
 
     <audio id="bgm" loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"></audio>
     <audio id="crashSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
@@ -43,4 +25,19 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase,
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC2-YD5-cdNaPf7-5Hfzjj_yGOHBaLWN6s",
+            authDomain: "ai-car-game.firebaseapp.com",
+            projectId: "ai-car-game",
+            storageBucket: "ai-car-game.firebasestorage.app",
+            messagingSenderId: "610670474643",
+            appId: "1:610670474643:web:5c28d61b9300644fad2466"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const tiltRef = ref(db, 'car/tilt');
+
+        let scene, camera, renderer, car, gameStarted = false, score = 0, obstacles = [], roadLines = [];
+        let lanes = [-3, 0,
