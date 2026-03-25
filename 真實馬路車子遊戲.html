@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 體感賽車 - 最終修復版</title>
+    <title>AI 體感賽車 - 終極修復</title>
     <style>
         html, body { margin: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; }
         #pc-ui, #mobile-ui { position: absolute; width: 100%; text-align: center; color: white; z-index: 100; }
@@ -13,12 +13,13 @@
         .sensor-btn { padding: 25px; background: #28a745; color: white; border: none; border-radius: 20px; width: 80%; font-size: 24px; }
         #score { font-size: 24px; margin-top: 10px; text-shadow: 2px 2px 4px #000; }
         #angle { font-size: 80px; color: #00ff00; margin: 50px 0; }
+        canvas { display: block; }
     </style>
 </head>
 <body>
 
     <div id="pc-ui">
-        <button id="startBtn" class="btn">開始遊戲 (鍵盤或手機皆可控)</button>
+        <button id="startBtn" class="btn">開始遊戲 (鍵盤或手機控制)</button>
         <div id="score">分數：0</div>
     </div>
 
@@ -31,6 +32,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script type="module">
+        // 修正 2：確保 Firebase 在 Three.js 之後初始化
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
@@ -46,9 +48,7 @@
         const db = getDatabase(app);
         const tiltRef = ref(db, 'car/tilt');
 
-        // 判斷裝置
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
         let scene, camera, renderer, car, gameStarted = false, score = 0, obstacles = [], lanes = [-2, 0, 2];
 
         if (isMobile) {
@@ -80,22 +80,20 @@
 
         function initGame() {
             scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000000); // 強制設定背景
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            // 建立 3D 路面
             const road = new THREE.Mesh(new THREE.PlaneGeometry(10, 1000), new THREE.MeshPhongMaterial({ color: 0x333333 }));
             road.rotation.x = -Math.PI / 2;
             scene.add(road);
 
-            // 建立 3D 車子
             car = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 2), new THREE.MeshPhongMaterial({ color: 0x0077ff }));
             car.position.set(0, 0.3, 5);
             scene.add(car);
 
-            // 燈光
             const light = new THREE.DirectionalLight(0xffffff, 1);
             light.position.set(5, 10, 7.5);
             scene.add(light);
@@ -104,14 +102,12 @@
             camera.position.set(0, 5, 12);
             camera.lookAt(0, 0, 0);
 
-            // 鍵盤監聽
             window.addEventListener('keydown', (e) => {
                 if (e.key === 'ArrowLeft') car.position.x = lanes[0];
                 if (e.key === 'ArrowRight') car.position.x = lanes[2];
                 if (e.key === 'ArrowUp' || e.key === 'ArrowDown') car.position.x = lanes[1];
             });
 
-            // 雲端監聽
             onValue(tiltRef, (snapshot) => {
                 const tilt = snapshot.val() || 0;
                 if (tilt < -15) car.position.x = lanes[0];
@@ -133,4 +129,20 @@
             requestAnimationFrame(animate);
             obstacles.forEach((obs, i) => {
                 obs.position.z += 0.8;
-                if (obs.position.z > car.position.z - 0.5 && obs.position
+                if (obs.position.z > car.position.z - 0.5 && obs.position.z < car.position.z + 0.5 && obs.position.x === car.position.x) {
+                    gameStarted = false;
+                    alert("遊戲結束！分數：" + score);
+                    location.reload();
+                }
+                if (obs.position.z > 15) {
+                    scene.remove(obs);
+                    obstacles.splice(i, 1);
+                    score += 10;
+                    document.getElementById('score').innerText = "分數：" + score;
+                }
+            });
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
