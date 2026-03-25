@@ -36,6 +36,38 @@
 <canvas id="gameCanvas" width="856" height="868" style="width: 856px; height: 868px;"></canvas>
 <script src="./真實馬路車子遊戲_files/three.min.js.下載"></script>
 <script>
+// --- AI 雲端控制模組開始 ---
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyC2-YD5-cdNaPf7-5Hfzjj_yGOHBaLWN6s",
+    authDomain: "ai-car-game.firebaseapp.com",
+    projectId: "ai-car-game",
+    storageBucket: "ai-car-game.firebasestorage.app",
+    messagingSenderId: "610670474643",
+    appId: "1:610670474643:web:5c28d61b9300644fad2466"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// 監聽手機訊號並自動切換車道
+onValue(ref(db, 'car/tilt'), (snapshot) => {
+    if (!gameStarted) return;
+    const tilt = snapshot.val() || 0;
+    
+    // AI 穩定化邏輯：設定「數位死區」，過濾細微手震
+    // 根據 tilt 值決定車子要在哪一個 lane (-2, 0, 2)
+    if (tilt < -15) {
+        if (car) car.position.x = lanes[0]; // 左車道
+    } else if (tilt > 15) {
+        if (car) car.position.x = lanes[2]; // 右車道
+    } else {
+        if (car) car.position.x = lanes[1]; // 中間車道
+    }
+});
+// --- AI 雲端控制模組結束 ---
 let scene, camera, renderer, car, wheels = [], obstacles = [], road;
 let score = 0, gameStarted = false, startTime;
 const laneWidth = 2, lanes = [-laneWidth, 0, laneWidth];
