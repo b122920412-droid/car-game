@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 體感賽車 - 終極修復</title>
+    <title>AI 賽車 - 強制連線版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
-        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; background: rgba(0,0,0,0.85); }
-        .btn { padding: 25px 60px; font-size: 30px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; box-shadow: 0 10px 30px rgba(0,123,255,0.4); }
-        #scoreDisplay { position: absolute; top: 20px; right: 30px; font-size: 45px; color: #00ff00; font-family: monospace; font-weight: bold; z-index: 100; }
-        #mobile-ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; z-index: 2000; background: #111; color: white; text-align: center; }
-        .touch-zone { position: absolute; top: 0; width: 50%; height: 100%; z-index: 2005; }
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; background: rgba(0,0,0,0.9); }
+        .btn { padding: 25px 60px; font-size: 30px; cursor: pointer; background: #007bff; border: none; color: white; border-radius: 50px; font-weight: bold; }
+        #scoreDisplay { position: absolute; top: 20px; right: 30px; font-size: 45px; color: #00ff00; font-family: monospace; z-index: 100; }
+        #mobile-ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; z-index: 2000; background: #000; color: white; text-align: center; }
+        .touch-zone { position: absolute; top: 0; width: 50%; height: 100%; z-index: 2005; border: 1px solid rgba(255,255,255,0.1); }
         #left-zone { left: 0; }
         #right-zone { right: 0; }
     </style>
@@ -19,14 +19,14 @@
 
     <div id="overlay">
         <button id="startBtn" class="btn">開始挑戰 (電腦點此)</button>
-        <p style="color: #666; margin-top: 20px;">🔊 點擊後將自動重置連線並開啟音效</p>
     </div>
 
     <div id="scoreDisplay">00000</div>
 
     <div id="mobile-ui">
-        <div style="margin-top: 40vh; padding: 20px;">
-            <button id="sensorBtn" class="btn">啟動遙控器</button>
+        <div style="margin-top: 35vh; padding: 20px;">
+            <button id="sensorBtn" class="btn" style="background: #dc3545;">點我連線遙控器</button>
+            <p id="status" style="color: #fff; margin-top: 20px; font-size: 20px;">等待點擊...</p>
         </div>
         <div id="left-zone" class="touch-zone"></div>
         <div id="right-zone" class="touch-zone"></div>
@@ -62,32 +62,47 @@
         if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
             document.getElementById('mobile-ui').style.display = 'block';
             document.getElementById('overlay').style.display = 'none';
-            document.getElementById('sensorBtn').onclick = function() {
-                this.style.background = "#28a745";
+
+            const sBtn = document.getElementById('sensorBtn');
+            const status = document.getElementById('status');
+
+            // 💡 點擊連線 (修正為強制執行)
+            sBtn.addEventListener('click', function() {
+                status.innerText = "正在嘗試連線 Firebase...";
+                sBtn.style.background = "#28a745";
+                sBtn.innerText = "連線成功！可點擊左右側";
+                
+                // 強制重置一次，蓋掉往右跑的訊號
+                set(moveRef, Date.now() + "_0");
+                set(tiltRef, 0);
+
                 if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                    DeviceOrientationEvent.requestPermission().then(s => { if(s==='granted') window.addEventListener('deviceorientation', (e) => set(tiltRef, Math.round(e.gamma))); });
-                } else { window.addEventListener('deviceorientation', (e) => set(tiltRef, Math.round(e.gamma))); }
-            };
-            document.getElementById('left-zone').ontouchstart = (e) => { e.preventDefault(); set(moveRef, Date.now() + "_-1"); };
-            document.getElementById('right-zone').ontouchstart = (e) => { e.preventDefault(); set(moveRef, Date.now() + "_1"); };
+                    DeviceOrientationEvent.requestPermission().then(s => { 
+                        if(s==='granted') window.addEventListener('deviceorientation', (e) => set(tiltRef, Math.round(e.gamma)));
+                    }).catch(err => alert("感測器權限錯誤: " + err));
+                } else {
+                    window.addEventListener('deviceorientation', (e) => set(tiltRef, Math.round(e.gamma)));
+                }
+            });
+
+            // 💡 觸控區域 (改用更靈敏的監聽)
+            document.getElementById('left-zone').addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                set(moveRef, Date.now() + "_-1");
+                status.innerText = "向左傳輸中...";
+            });
+            document.getElementById('right-zone').addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                set(moveRef, Date.now() + "_1");
+                status.innerText = "向右傳輸中...";
+            });
         }
 
-        document.getElementById('startBtn').onclick = function() {
-            // 💡 1. 物理級重置：開局先強制把雲端數據設為 0，防止車子亂跑
-            set(tiltRef, 0);
-            set(moveRef, "0_0");
-            
+        document.getElementById('startBtn').onclick = () => {
             gameStarted = true;
             document.getElementById('overlay').style.display = 'none';
-            
-            // 💡 2. 音效暴力解鎖
-            const bgm = document.getElementById('bgm');
-            const crash = document.getElementById('crashSound');
-            bgm.play();
-            crash.play().then(() => { crash.pause(); crash.currentTime = 0; }).catch(e => console.log(e));
-
+            document.getElementById('bgm').play();
             init3D(); animate();
-            
             onValue(tiltRef, (s) => { 
                 const t = s.val() || 0; 
                 if (t < -15) currentLaneIndex = 0; else if (t > 15) currentLaneIndex = 2; else currentLaneIndex = 1; 
@@ -99,7 +114,6 @@
                 if (dir === 1 && currentLaneIndex < 2) currentLaneIndex++; 
                 targetX = lanes[currentLaneIndex]; 
             });
-
             setInterval(() => { if(gameStarted) { score++; document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0'); } }, 100);
             setInterval(createObstacle, 1100);
         };
@@ -109,33 +123,13 @@
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight); document.body.appendChild(renderer.domElement);
-            
             scene.add(new THREE.Mesh(new THREE.PlaneGeometry(16, 2000), new THREE.MeshPhongMaterial({ color: 0x1a1a1a })).rotateX(-Math.PI/2));
-            for (let i = 0; i < 40; i++) {
-                const line = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 5), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-                line.rotation.x = -Math.PI / 2; line.position.set(-1.75, 0.05, -i * 15);
-                scene.add(line); roadLines.push(line);
-                const line2 = line.clone(); line2.position.x = 1.75; scene.add(line2); roadLines.push(line2);
-            }
-            
             car = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 3.4), new THREE.MeshPhongMaterial({ color: 0x007bff }));
-            body.position.y = 0.5; car.add(body);
-            const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 1.4), new THREE.MeshPhongMaterial({ color: 0x003399 }));
-            cabin.position.set(0, 1.05, -0.2); car.add(cabin);
-            const wG = new THREE.CylinderGeometry(0.4, 0.4, 0.4, 16); const wM = new THREE.MeshPhongMaterial({ color: 0x222222 });
-            [[-0.9,-1.1],[0.9,-1.1],[-0.9,1.1],[0.9,1.1]].forEach(p => { const w = new THREE.Mesh(wG, wM); w.rotation.z = Math.PI/2; w.position.set(p[0], 0.4, p[1]); car.add(w); });
-            scene.add(car); car.position.z = 12;
-
+            car.add(new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 3.4), new THREE.MeshPhongMaterial({ color: 0x007bff })));
+            scene.add(car); car.position.set(0, 0.5, 12);
             scene.add(new THREE.AmbientLight(0xffffff, 0.6));
             const sun = new THREE.DirectionalLight(0xffffff, 1); sun.position.set(5, 15, 10); scene.add(sun);
             camera.position.set(0, 6, 26); camera.lookAt(0, 1, 0);
-            
-            window.onkeydown = (e) => {
-                if (e.key === 'ArrowLeft' && currentLaneIndex > 0) currentLaneIndex--;
-                if (e.key === 'ArrowRight' && currentLaneIndex < 2) currentLaneIndex++;
-                targetX = lanes[currentLaneIndex];
-            };
         }
 
         function createObstacle() {
@@ -149,17 +143,12 @@
             if (!gameStarted) return;
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
-            roadLines.forEach(l => { l.position.z += 1.8; if(l.position.z > 40) l.position.z = -200; });
             obstacles.forEach((obs, i) => {
                 obs.position.z += 1.6;
                 if (Math.abs(car.position.z - obs.position.z) < 2.5 && Math.abs(car.position.x - obs.position.x) < 1.7) {
-                    gameStarted = false;
-                    const crash = document.getElementById('crashSound');
-                    crash.play().catch(e => console.log(e)); // 播放音效
-                    document.getElementById('bgm').pause();
+                    gameStarted = false; document.getElementById('crashSound').play();
                     setTimeout(() => { alert("💥 遊戲結束！得分: " + score); location.reload(); }, 300);
                 }
-                if (obs.position.z > 50) { scene.remove(obs); obstacles.splice(i, 1); }
             });
             renderer.render(scene, camera);
         }
