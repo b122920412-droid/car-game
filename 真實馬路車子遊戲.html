@@ -3,17 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 體感賽車 - 完美動態版</title>
+    <title>AI 體感賽車 - 終極音效版</title>
     <style>
         html, body { margin: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; }
         #ui { position: absolute; width: 100%; text-align: center; color: white; z-index: 100; top: 20px; }
         .btn { padding: 15px 30px; font-size: 20px; cursor: pointer; background: #0066cc; border: none; color: white; border-radius: 8px; font-weight: bold; }
-        
-        /* 修正：更漂亮的動態分數 UI */
         #scoreContainer { position: absolute; top: 20px; right: 20px; text-align: right; z-index: 150; }
-        #scoreDisplay { font-size: 48px; color: #00ff00; font-weight: bold; font-family: 'Courier New', monospace; text-shadow: 0 0 10px #00ff00; }
-        .score-label { font-size: 18px; color: #fff; }
-
+        #scoreDisplay { font-size: 48px; color: #00ff00; font-weight: bold; font-family: monospace; text-shadow: 0 0 10px #00ff00; }
         #mobile-ui { position: absolute; width: 100%; top: 50px; text-align: center; color: white; display: none; z-index: 200; }
         .sensor-btn { padding: 25px; background: #28a745; color: white; border-radius: 20px; width: 80%; font-size: 24px; border: none; }
     </style>
@@ -21,11 +17,10 @@
 <body>
 
     <div id="ui">
-        <button id="startBtn" class="btn">開始挑戰 (體感/鍵盤)</button>
+        <button id="startBtn" class="btn">開始挑戰 (包含音樂音效)</button>
     </div>
 
     <div id="scoreContainer">
-        <div class="score-label">SURVIVAL SCORE</div>
         <div id="scoreDisplay">00000</div>
     </div>
 
@@ -33,6 +28,9 @@
         <h2>AI 手機遙控模式</h2>
         <button id="sensorBtn" class="sensor-btn">啟動體感控制</button>
     </div>
+
+    <audio id="bgm" loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"></audio>
+    <audio id="crashSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
@@ -53,6 +51,7 @@
         const tiltRef = ref(db, 'car/tilt');
 
         let scene, camera, renderer, car, gameStarted = false, score = 0, obstacles = [], lanes = [-2.5, 0, 2.5];
+        let targetX = 0; // 車子目標位置
 
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
@@ -69,35 +68,26 @@
                 if (!gameStarted) {
                     gameStarted = true;
                     document.getElementById('startBtn').style.display = 'none';
+                    document.getElementById('bgm').play(); // 播放音樂
                     initGame();
                     animate();
                     setInterval(createObstacle, 1000);
-                    // 修正 2：分數改為生存時間累加
-                    setInterval(() => { if(gameStarted) { score += 1; updateScore(); } }, 100); 
+                    setInterval(() => { if(gameStarted) { score++; document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0'); } }, 100);
                 }
             };
         }
 
-        function updateScore() {
-            document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0');
-        }
-
         function startSensor() {
-            window.addEventListener('deviceorientation', (e) => {
-                set(tiltRef, Math.round(e.gamma));
-            });
-            document.getElementById('sensorBtn').innerText = "感測連線中...";
+            window.addEventListener('deviceorientation', (e) => set(tiltRef, Math.round(e.gamma)));
         }
 
         function initGame() {
             scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x000000, 10, 50);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
-
-            // 建立地平線效果
-            scene.fog = new THREE.Fog(0x000000, 10, 50);
 
             const road = new THREE.Mesh(new THREE.PlaneGeometry(10, 1000), new THREE.MeshPhongMaterial({ color: 0x111111 }));
             road.rotation.x = -Math.PI / 2;
@@ -115,19 +105,19 @@
             camera.position.set(0, 4, 11);
             camera.lookAt(0, 1, 0);
 
-            // 鍵盤
-            window.addEventListener('keydown', (e) => {
-                if (e.key === 'ArrowLeft') car.position.x = lanes[0];
-                if (e.key === 'ArrowRight') car.position.x = lanes[2];
-                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') car.position.x = lanes[1];
-            });
-
-            // 修正 1：擴大中間判定的「數位死區」，防止直接跳過中間
+            // 雲端監聽：更新目標位置 (使用遲滯區間，解決跳格)
             onValue(tiltRef, (s) => {
                 const t = s.val() || 0;
-                if (t < -18) car.position.x = lanes[0];       // 傾斜超過 18 度才切換
-                else if (t > 18) car.position.x = lanes[2];
-                else car.position.x = lanes[1];              // 正負 18 度內全算中間
+                if (t < -18) targetX = lanes[0];
+                else if (t > 18) targetX = lanes[2];
+                else targetX = lanes[1];
+            });
+
+            // 鍵盤控制
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft') targetX = lanes[0];
+                if (e.key === 'ArrowRight') targetX = lanes[2];
+                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') targetX = lanes[1];
             });
         }
 
@@ -142,20 +132,17 @@
         function animate() {
             if (!gameStarted) return;
             requestAnimationFrame(animate);
+
+            // 修正：車子平滑移動 (Lerp)，這會讓車子「滑過」中間區域，而不是直接閃現
+            car.position.x += (targetX - car.position.x) * 0.15;
+
             obstacles.forEach((obs, i) => {
                 obs.position.z += 0.8;
-                if (obs.position.z > car.position.z - 0.5 && obs.position.z < car.position.z + 0.5 && Math.abs(obs.position.x - car.position.x) < 1) {
-                    gameStarted = false; 
-                    alert("遊戲結束！生存分數：" + score); 
-                    location.reload();
+                // 碰撞偵測
+                if (obs.position.z > car.position.z - 0.5 && obs.position.z < car.position.z + 0.5 && Math.abs(obs.position.x - obs.position.x) < 1.2 && Math.abs(car.position.x - obs.position.x) < 1) {
+                    gameStarted = false;
+                    document.getElementById('crashSound').play(); // 播放撞車聲
+                    document.getElementById('bgm').pause();
+                    setTimeout(() => { alert("遊戲結束！總分：" + score); location.reload(); }, 200);
                 }
-                if (obs.position.z > 15) {
-                    scene.remove(obs); 
-                    obstacles.splice(i, 1);
-                }
-            });
-            renderer.render(scene, camera);
-        }
-    </script>
-</body>
-</html>
+                if (obs.position.z > 15) { scene.remove(obs); obstacles.splice(i, 1);
