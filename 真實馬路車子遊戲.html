@@ -12,7 +12,7 @@
         .btn:active { transform: scale(0.95); }
         #scoreDisplay { position: absolute; top: 20px; right: 20px; font-size: 30px; color: #0f0; font-family: monospace; font-weight: bold; z-index: 100; text-shadow: 0 0 10px #0f0; }
         .title { color: white; font-size: 36px; margin-bottom: 5px; font-weight: 900; letter-spacing: 2px; }
-        .hint { color: #666; font-size: 14px; margin-top: 20px; line-height: 1.6; }
+        .hint { color: #555; font-size: 14px; margin-top: 25px; line-height: 1.8; }
     </style>
 </head>
 <body>
@@ -24,7 +24,7 @@
             <button class="btn" onclick="setupControl('touch')">📱 螢幕點擊</button>
             <button class="btn" onclick="setupControl('tilt')" style="background: linear-gradient(135deg, #6f42c1, #e83e8c);">🌀 手機體感</button>
         </div>
-        <div class="hint">⌨️ 電腦玩家可直接使用方向鍵<br>🔊 建議開啟聲音體驗更佳</div>
+        <div class="hint">⌨️ 電腦玩家：使用方向鍵<br>📱 手機玩家：傾斜或點擊兩側</div>
     </div>
 
     <div id="scoreDisplay">00000</div>
