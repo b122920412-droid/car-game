@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D 體感賽車 - 期末挑戰版</title>
+    <title>3D 體感賽車 - Deja Vu 版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
@@ -16,12 +16,12 @@
 
     <div id="start-screen">
         <button id="startBtn" class="btn">開始挑戰</button>
-        <p class="hint">🔊 音樂已更新為輕快節奏<br>📱 左右傾斜手機控制<br>🔥 注意：遊戲會隨時間越來越快！</p>
+        <p class="hint">🔊 音樂：Initial D - Deja Vu<br>📱 左右傾斜手機控制</p>
     </div>
 
     <div id="scoreDisplay">00000</div>
 
-    <audio id="bgm" loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3"></audio>
+    <audio id="bgm" loop src="https://actions.google.com/sounds/v1/science_fiction/low_frequency_pulsing.ogg"></audio>
     <audio id="crashSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -31,22 +31,17 @@
         let obstacles = [], trees = [], roadLines = [];
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         
-        // 💡 核心難度調整：初始速度調高
-        let currentSpeed = 2.0; 
-        let speedInterval, obstacleInterval, treeInterval;
+        // 💡 調整初始速度：讓它更有挑戰性
+        let currentSpeed = 2.2; 
 
         document.getElementById('startBtn').onclick = () => {
             const bgm = document.getElementById('bgm');
             bgm.volume = 0.5;
-            bgm.play().catch(e => console.log("音訊解鎖失敗:", e));
+            bgm.play();
 
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission().then(permissionState => {
-                    start();
-                }).catch(() => start());
-            } else {
-                start();
-            }
+                DeviceOrientationEvent.requestPermission().then(s => { start(); }).catch(() => start());
+            } else { start(); }
         };
 
         function start() {
@@ -56,23 +51,16 @@
             initControls();
             animate();
             
-            // 💡 難度設計：動態加速與生成
-            // 1. 分數增加，遊戲每 10 秒增加速度
-            speedInterval = setInterval(() => {
+            setInterval(() => {
                 if(gameStarted) {
                     score++;
                     document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0');
-                    if (score % 50 === 0 && currentSpeed < 4.5) {
-                        currentSpeed += 0.2; // 💡 每次加速幅度提高
-                    }
+                    // 💡 每 50 分就大幅度加速一次
+                    if (score % 50 === 0 && currentSpeed < 4.8) currentSpeed += 0.25;
                 }
             }, 100);
-
-            // 2. 障礙物生成間隔 (縮短為 0.9 秒，路上的車變多)
-            obstacleInterval = setInterval(createObstacle, 900);
-            
-            // 3. 樹木生成間隔
-            treeInterval = setInterval(createTree, 1500);
+            setInterval(createObstacle, 1000); // 增加障礙物生成頻率
+            setInterval(createTree, 1500);
         }
 
         function initControls() {
@@ -100,7 +88,7 @@
 
         function init3D() {
             scene = new THREE.Scene();
-            scene.fog = new THREE.Fog(0x000000, 30, 140);
+            scene.fog = new THREE.Fog(0x000000, 30, 150);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -110,6 +98,7 @@
             road.rotation.x = -Math.PI / 2;
             scene.add(road);
 
+            // 路標線
             for (let i = 0; i < 40; i++) {
                 const line = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 5), new THREE.MeshBasicMaterial({ color: 0xffffff }));
                 line.rotation.x = -Math.PI / 2;
@@ -118,8 +107,9 @@
                 const line2 = line.clone(); line2.position.x = 1.75; scene.add(line2); roadLines.push(line2);
             }
 
+            // 擬真賽車 (藍色 Mesh)
             car = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 3.4), new THREE.MeshPhongMaterial({ color: 0x007bff, shininess: 80 }));
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 3.4), new THREE.MeshPhongMaterial({ color: 0x007bff, shininess: 100 }));
             body.position.y = 0.5;
             const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 1.4), new THREE.MeshPhongMaterial({ color: 0x111111 }));
             cabin.position.set(0, 1.05, -0.2);
@@ -127,10 +117,10 @@
             scene.add(car);
             car.position.z = 12;
 
-            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-            const light = new THREE.DirectionalLight(0xffffff, 1);
-            light.position.set(5, 15, 10);
-            scene.add(light);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+            const sun = new THREE.DirectionalLight(0xffffff, 1);
+            sun.position.set(5, 15, 10);
+            scene.add(sun);
 
             camera.position.set(0, 6, 26);
             camera.lookAt(0, 1, 0);
@@ -144,15 +134,14 @@
                 const leaves = new THREE.Mesh(new THREE.ConeGeometry(1.2, 3, 8), new THREE.MeshPhongMaterial({ color: 0x228b22 }));
                 leaves.position.y = 2.5; trunk.position.y = 1;
                 tree.add(trunk, leaves);
-                tree.position.set(x, 0, -100);
+                tree.position.set(x, 0, -120);
                 scene.add(tree); trees.push(tree);
             });
         }
 
         function createObstacle() {
             if (!gameStarted) return;
-            // 💡 障碍物形狀稍微變尖，看起來更危險
-            const obs = new THREE.Mesh(new THREE.BoxGeometry(2.1, 1.4, 2.5), new THREE.MeshPhongMaterial({ color: 0xff3333, shininess: 20 }));
+            const obs = new THREE.Mesh(new THREE.BoxGeometry(2.1, 1.4, 2.5), new THREE.MeshPhongMaterial({ color: 0xff3333 }));
             obs.position.set(lanes[Math.floor(Math.random() * 3)], 0.7, -100);
             scene.add(obs); obstacles.push(obs);
         }
@@ -162,21 +151,15 @@
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
             roadLines.forEach(l => { l.position.z += currentSpeed; if(l.position.z > 40) l.position.z = -200; });
-            trees.forEach((t, i) => { t.position.z += currentSpeed; if(t.position.z > 40) { scene.remove(t); trees.splice(i, 1); } });
+            trees.forEach((t, i) => { t.position.z += currentSpeed; if(t.position.z > 50) { scene.remove(t); trees.splice(i, 1); } });
             obstacles.forEach((obs, i) => {
-                obs.position.z += currentSpeed; // 💡 使用動態速度
+                obs.position.z += currentSpeed;
                 if (Math.abs(car.position.z - obs.position.z) < 2.5 && Math.abs(car.position.x - obs.position.x) < 1.7) {
                     gameStarted = false;
                     document.getElementById('crashSound').play();
-                    
-                    // 清除計時器
-                    clearInterval(speedInterval);
-                    clearInterval(obstacleInterval);
-                    clearInterval(treeInterval);
-
                     setTimeout(() => { alert("💥 遊戲結束！得分: " + score); location.reload(); }, 200);
                 }
-                if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
+                if (obs.position.z > 50) { scene.remove(obs); obstacles.splice(i, 1); }
             });
             renderer.render(scene, camera);
         }
