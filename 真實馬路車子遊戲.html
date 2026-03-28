@@ -3,20 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D 體感賽車 - 終極發表版</title>
+    <title>3D 體感賽車 - 擬真發表版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
         .btn { padding: 20px 50px; font-size: 26px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
         #scoreDisplay { position: absolute; top: 20px; right: 20px; font-size: 35px; color: #0f0; font-family: monospace; font-weight: bold; z-index: 100; text-shadow: 0 0 10px #0f0; }
-        .hint { color: #888; margin-top: 20px; font-size: 14px; text-align: center; line-height: 1.6; }
+        .hint-container { color: #aaa; margin-top: 30px; font-size: 16px; text-align: left; line-height: 1.8; }
+        .hint-item { display: flex; align-items: center; margin-bottom: 8px; }
+        .hint-icon { margin-right: 10px; font-size: 20px; }
     </style>
 </head>
 <body>
 
     <div id="start-screen">
         <button id="startBtn" class="btn">開始挑戰</button>
-        <p class="hint">🔊 點擊後播放音樂<br>⌨️ 電腦：使用鍵盤左右鍵<br>📱 手機：傾斜手機或點擊左右側</p>
+        <div class="hint-container">
+            <div class="hint-item"><span class="hint-icon">⌨️</span> 電腦：使用鍵盤左、右方向鍵</div>
+            <div class="hint-item"><span class="hint-icon">📱</span> 手機：左右傾斜手機 或 點擊螢幕兩側</div>
+        </div>
     </div>
 
     <div id="scoreDisplay">00000</div>
@@ -31,38 +36,6 @@
         let obstacles = [], trees = [], roadLines = [];
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let currentSpeed = 2.0; 
-
-        // 💡 重新補回鍵盤控制監聽
-        function initControls() {
-            // 鍵盤監聽
-            window.addEventListener('keydown', (e) => {
-                if (!gameStarted) return;
-                if (e.key === 'ArrowLeft' && currentLaneIndex > 0) currentLaneIndex--;
-                if (e.key === 'ArrowRight' && currentLaneIndex < 2) currentLaneIndex++;
-                targetX = lanes[currentLaneIndex];
-            });
-
-            // 手機觸控監聽
-            window.addEventListener('touchstart', (e) => {
-                if (!gameStarted) return;
-                const x = e.touches[0].clientX;
-                if (x < window.innerWidth / 2) { if (currentLaneIndex > 0) currentLaneIndex--; }
-                else { if (currentLaneIndex < 2) currentLaneIndex++; }
-                targetX = lanes[currentLaneIndex];
-            });
-
-            // 手機體感監聽
-            if (window.DeviceOrientationEvent) {
-                window.addEventListener('deviceorientation', (e) => {
-                    if (!gameStarted) return;
-                    const tilt = e.gamma; 
-                    if (tilt < -15) currentLaneIndex = 0;
-                    else if (tilt > 15) currentLaneIndex = 2;
-                    else currentLaneIndex = 1;
-                    targetX = lanes[currentLaneIndex];
-                });
-            }
-        }
 
         document.getElementById('startBtn').onclick = () => {
             const bgm = document.getElementById('bgm');
@@ -92,6 +65,32 @@
             setInterval(createTree, 1500);
         }
 
+        function initControls() {
+            window.addEventListener('keydown', (e) => {
+                if (!gameStarted) return;
+                if (e.key === 'ArrowLeft' && currentLaneIndex > 0) currentLaneIndex--;
+                if (e.key === 'ArrowRight' && currentLaneIndex < 2) currentLaneIndex++;
+                targetX = lanes[currentLaneIndex];
+            });
+            window.addEventListener('touchstart', (e) => {
+                if (!gameStarted) return;
+                const x = e.touches[0].clientX;
+                if (x < window.innerWidth / 2) { if (currentLaneIndex > 0) currentLaneIndex--; }
+                else { if (currentLaneIndex < 2) currentLaneIndex++; }
+                targetX = lanes[currentLaneIndex];
+            });
+            if (window.DeviceOrientationEvent) {
+                window.addEventListener('deviceorientation', (e) => {
+                    if (!gameStarted) return;
+                    const tilt = e.gamma; 
+                    if (tilt < -15) currentLaneIndex = 0;
+                    else if (tilt > 15) currentLaneIndex = 2;
+                    else currentLaneIndex = 1;
+                    targetX = lanes[currentLaneIndex];
+                });
+            }
+        }
+
         function init3D() {
             scene = new THREE.Scene();
             scene.fog = new THREE.Fog(0x000000, 30, 140);
@@ -112,12 +111,39 @@
                 const line2 = line.clone(); line2.position.x = 1.75; scene.add(line2); roadLines.push(line2);
             }
 
+            // 💡 2. 手工打造精緻 3D 賽車模型
             car = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 3.4), new THREE.MeshPhongMaterial({ color: 0x007bff, shininess: 80 }));
-            body.position.y = 0.5;
-            const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 1.4), new THREE.MeshPhongMaterial({ color: 0x111111 }));
-            cabin.position.set(0, 1.05, -0.2);
-            car.add(body, cabin);
+
+            // 車身 (藍色金屬質感)
+            const carBodyMaterial = new THREE.MeshPhongMaterial({ color: 0x007bff, specular: 0xffffff, shininess: 100 });
+            
+            // 下半部車身
+            const bodyBottom = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.5, 3.4), carBodyMaterial);
+            bodyBottom.position.y = 0.5;
+            car.add(bodyBottom);
+
+            // 上半部車廂 (含車窗質感)
+            const cabinMaterial = new THREE.MeshPhongMaterial({ color: 0x111111, shininess: 50 });
+            const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 1.4), cabinMaterial);
+            cabin.position.set(0, 0.95, -0.2); // 稍微靠後
+            car.add(cabin);
+
+            // 輪胎 (四個黑色圓柱)
+            const wheelGeometry = new THREE.CylinderGeometry(0.35, 0.35, 0.4, 16);
+            const wheelMaterial = new THREE.MeshPhongMaterial({ color: 0x222222 });
+            
+            const wheelPositions = [
+                [-0.9, 0.35, -1.1], [0.9, 0.35, -1.1], // 前輪
+                [-0.9, 0.35, 1.1], [0.9, 0.35, 1.1]    // 後輪
+            ];
+
+            wheelPositions.forEach(pos => {
+                const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+                wheel.rotation.z = Math.PI / 2; // 轉向水平
+                wheel.position.set(pos[0], pos[1], pos[2]);
+                car.add(wheel);
+            });
+
             scene.add(car);
             car.position.z = 12;
 
