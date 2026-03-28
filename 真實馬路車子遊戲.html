@@ -16,11 +16,12 @@
 
     <div id="start-screen">
         <button id="startBtn" class="btn">開始挑戰</button>
-        <p class="hint">📱 左右傾斜手機控制<br>💻 電腦可用鍵盤左右鍵</p>
+        <p class="hint">📱 左右傾斜手機 或 點擊左右側控制<br>🔊 音樂將在點擊後播放</p>
     </div>
 
     <div id="scoreDisplay">00000</div>
 
+    <audio id="bgm" loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"></audio>
     <audio id="crashSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -31,16 +32,13 @@
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let currentSpeed = 1.6;
 
-        // 💡 1. 核心控制：支援體感與鍵盤
         function initControls() {
-            // 鍵盤
             window.addEventListener('keydown', (e) => {
                 if (e.key === 'ArrowLeft' && currentLaneIndex > 0) currentLaneIndex--;
                 if (e.key === 'ArrowRight' && currentLaneIndex < 2) currentLaneIndex++;
                 targetX = lanes[currentLaneIndex];
             });
 
-            // 手機點擊左右側
             window.addEventListener('touchstart', (e) => {
                 const x = e.touches[0].clientX;
                 if (x < window.innerWidth / 2) { if (currentLaneIndex > 0) currentLaneIndex--; }
@@ -48,7 +46,6 @@
                 targetX = lanes[currentLaneIndex];
             });
 
-            // 手機體感 (傾斜)
             if (window.DeviceOrientationEvent) {
                 window.addEventListener('deviceorientation', (e) => {
                     const tilt = e.gamma; 
@@ -61,11 +58,14 @@
         }
 
         document.getElementById('startBtn').onclick = () => {
-            // iOS 體感授權
+            // 💡 播放音樂 (必須在使用者點擊後才能播放)
+            document.getElementById('bgm').play();
+
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 DeviceOrientationEvent.requestPermission().then(permissionState => {
                     if (permissionState === 'granted') start();
-                }).catch(console.error);
+                    else start(); // 即使沒權限也強行開始(改用點擊控制)
+                }).catch(() => start());
             } else {
                 start();
             }
@@ -78,7 +78,6 @@
             initControls();
             animate();
             
-            // 計分與自動加速
             setInterval(() => {
                 if(gameStarted) {
                     score++;
@@ -98,12 +97,10 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            // 馬路
             const road = new THREE.Mesh(new THREE.PlaneGeometry(16, 2000), new THREE.MeshPhongMaterial({ color: 0x1a1a1a }));
             road.rotation.x = -Math.PI / 2;
             scene.add(road);
 
-            // 虛線標線
             for (let i = 0; i < 40; i++) {
                 const line = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 5), new THREE.MeshBasicMaterial({ color: 0xffffff }));
                 line.rotation.x = -Math.PI / 2;
@@ -112,7 +109,6 @@
                 const line2 = line.clone(); line2.position.x = 1.75; scene.add(line2); roadLines.push(line2);
             }
 
-            // 擬真賽車
             car = new THREE.Group();
             const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 3.4), new THREE.MeshPhongMaterial({ color: 0x007bff, shininess: 80 }));
             body.position.y = 0.5;
@@ -155,8 +151,6 @@
             if (!gameStarted) return;
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
-
-            // 所有物體移動速度隨 currentSpeed 增加
             roadLines.forEach(l => { l.position.z += currentSpeed; if(l.position.z > 40) l.position.z = -200; });
             trees.forEach((t, i) => { t.position.z += currentSpeed; if(t.position.z > 40) { scene.remove(t); trees.splice(i, 1); } });
             obstacles.forEach((obs, i) => {
