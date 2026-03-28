@@ -3,25 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D 體感賽車 - 期末發表版</title>
+    <title>賽車小遊戲</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center; }
-        .btn-group { display: flex; flex-direction: column; gap: 20px; margin-top: 30px; }
-        .btn { padding: 20px 40px; font-size: 22px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; box-shadow: 0 5px 15px rgba(0,123,255,0.4); width: 250px; }
-        #scoreDisplay { position: absolute; top: 20px; right: 20px; font-size: 35px; color: #0f0; font-family: monospace; font-weight: bold; z-index: 100; text-shadow: 0 0 10px #0f0; }
-        .title { color: white; font-size: 32px; margin-bottom: 10px; font-weight: 900; letter-spacing: 2px; }
+        .btn-group { display: flex; flex-direction: column; gap: 15px; margin-top: 25px; }
+        .btn { padding: 18px 35px; font-size: 20px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; box-shadow: 0 5px 15px rgba(0,123,255,0.4); width: 220px; transition: 0.2s; }
+        .btn:active { transform: scale(0.95); }
+        #scoreDisplay { position: absolute; top: 20px; right: 20px; font-size: 30px; color: #0f0; font-family: monospace; font-weight: bold; z-index: 100; text-shadow: 0 0 10px #0f0; }
+        .title { color: white; font-size: 36px; margin-bottom: 5px; font-weight: 900; letter-spacing: 2px; }
+        .hint { color: #666; font-size: 14px; margin-top: 20px; line-height: 1.6; }
     </style>
 </head>
 <body>
 
     <div id="start-screen">
-        <div class="title">3D RACING CHALLENGE</div>
-        <div style="color: #888;">請選擇操作方式</div>
+        <div class="title">賽車小遊戲</div>
+        <div style="color: #aaa;">選擇操作方式開始挑戰</div>
         <div class="btn-group">
-            <button class="btn" onclick="setupControl('touch')">📱 螢幕點擊控制</button>
-            <button class="btn" onclick="setupControl('tilt')" style="background: linear-gradient(135deg, #6f42c1, #e83e8c);">🌀 手機體感控制</button>
+            <button class="btn" onclick="setupControl('touch')">📱 螢幕點擊</button>
+            <button class="btn" onclick="setupControl('tilt')" style="background: linear-gradient(135deg, #6f42c1, #e83e8c);">🌀 手機體感</button>
         </div>
+        <div class="hint">⌨️ 電腦玩家可直接使用方向鍵<br>🔊 建議開啟聲音體驗更佳</div>
     </div>
 
     <div id="scoreDisplay">00000</div>
@@ -35,13 +38,13 @@
         let scene, camera, renderer, car, gameStarted = false, score = 0;
         let obstacles = [], trees = [], roadLines = [];
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
-        let currentSpeed = 2.2; // 💡 稍微調高初始速度，增加挑戰性
+        let currentSpeed = 2.2; 
         let controlType = 'touch';
 
         function setupControl(type) {
             controlType = type;
             const bgm = document.getElementById('bgm');
-            bgm.volume = 0.5;
+            bgm.volume = 0.4;
             bgm.play().catch(() => {});
 
             if (type === 'tilt' && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -70,7 +73,6 @@
         }
 
         function initControls() {
-            // 💡 根據選擇啟用不同監聽
             if (controlType === 'touch') {
                 window.addEventListener('touchstart', (e) => {
                     if (e.touches[0].clientX < window.innerWidth / 2) { if (currentLaneIndex > 0) currentLaneIndex--; }
@@ -86,8 +88,6 @@
                     targetX = lanes[currentLaneIndex];
                 });
             }
-            
-            // 電腦端鍵盤永遠啟用
             window.addEventListener('keydown', (e) => {
                 if (e.key === 'ArrowLeft' && currentLaneIndex > 0) currentLaneIndex--;
                 if (e.key === 'ArrowRight' && currentLaneIndex < 2) currentLaneIndex++;
@@ -115,7 +115,6 @@
                 const line2 = line.clone(); line2.position.x = 1.75; scene.add(line2); roadLines.push(line2);
             }
 
-            // 💡 擬真賽車模型
             car = new THREE.Group();
             const bodyMat = new THREE.MeshPhongMaterial({ color: 0x007bff, specular: 0xffffff, shininess: 100 });
             const bottom = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.5, 3.4), bodyMat);
