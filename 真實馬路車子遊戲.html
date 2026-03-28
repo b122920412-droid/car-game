@@ -3,25 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D 體感賽車 - 發表最終版</title>
+    <title>3D 體感賽車 - 期末挑戰版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
         .btn { padding: 20px 50px; font-size: 26px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
         #scoreDisplay { position: absolute; top: 20px; right: 20px; font-size: 35px; color: #0f0; font-family: monospace; font-weight: bold; z-index: 100; text-shadow: 0 0 10px #0f0; }
-        .hint { color: #666; margin-top: 20px; font-size: 14px; text-align: center; line-height: 1.6; }
+        .hint { color: #888; margin-top: 20px; font-size: 14px; text-align: center; line-height: 1.6; }
     </style>
 </head>
 <body>
 
     <div id="start-screen">
         <button id="startBtn" class="btn">開始挑戰</button>
-        <p class="hint">🔊 點擊後將自動播放音樂<br>📱 左右傾斜手機 或 點擊左右側控制</p>
+        <p class="hint">🔊 音樂已更新為輕快節奏<br>📱 左右傾斜手機控制<br>🔥 注意：遊戲會隨時間越來越快！</p>
     </div>
 
     <div id="scoreDisplay">00000</div>
 
-    <audio id="bgm" loop src="https://actions.google.com/sounds/v1/science_fiction/low_frequency_pulsing.ogg"></audio>
+    <audio id="bgm" loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3"></audio>
     <audio id="crashSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -30,10 +30,12 @@
         let scene, camera, renderer, car, gameStarted = false, score = 0;
         let obstacles = [], trees = [], roadLines = [];
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
-        let currentSpeed = 1.6;
+        
+        // 💡 核心難度調整：初始速度調高
+        let currentSpeed = 2.0; 
+        let speedInterval, obstacleInterval, treeInterval;
 
         document.getElementById('startBtn').onclick = () => {
-            // 💡 暴力解鎖音訊：先 play 再說，如果失敗會 catch
             const bgm = document.getElementById('bgm');
             bgm.volume = 0.5;
             bgm.play().catch(e => console.log("音訊解鎖失敗:", e));
@@ -54,15 +56,23 @@
             initControls();
             animate();
             
-            setInterval(() => {
+            // 💡 難度設計：動態加速與生成
+            // 1. 分數增加，遊戲每 10 秒增加速度
+            speedInterval = setInterval(() => {
                 if(gameStarted) {
                     score++;
                     document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0');
-                    if (score % 50 === 0 && currentSpeed < 4) currentSpeed += 0.1;
+                    if (score % 50 === 0 && currentSpeed < 4.5) {
+                        currentSpeed += 0.2; // 💡 每次加速幅度提高
+                    }
                 }
             }, 100);
-            setInterval(createObstacle, 1100);
-            setInterval(createTree, 1500);
+
+            // 2. 障礙物生成間隔 (縮短為 0.9 秒，路上的車變多)
+            obstacleInterval = setInterval(createObstacle, 900);
+            
+            // 3. 樹木生成間隔
+            treeInterval = setInterval(createTree, 1500);
         }
 
         function initControls() {
@@ -141,7 +151,8 @@
 
         function createObstacle() {
             if (!gameStarted) return;
-            const obs = new THREE.Mesh(new THREE.BoxGeometry(2.1, 1.4, 2.5), new THREE.MeshPhongMaterial({ color: 0xff3333 }));
+            // 💡 障碍物形狀稍微變尖，看起來更危險
+            const obs = new THREE.Mesh(new THREE.BoxGeometry(2.1, 1.4, 2.5), new THREE.MeshPhongMaterial({ color: 0xff3333, shininess: 20 }));
             obs.position.set(lanes[Math.floor(Math.random() * 3)], 0.7, -100);
             scene.add(obs); obstacles.push(obs);
         }
@@ -153,10 +164,16 @@
             roadLines.forEach(l => { l.position.z += currentSpeed; if(l.position.z > 40) l.position.z = -200; });
             trees.forEach((t, i) => { t.position.z += currentSpeed; if(t.position.z > 40) { scene.remove(t); trees.splice(i, 1); } });
             obstacles.forEach((obs, i) => {
-                obs.position.z += currentSpeed;
+                obs.position.z += currentSpeed; // 💡 使用動態速度
                 if (Math.abs(car.position.z - obs.position.z) < 2.5 && Math.abs(car.position.x - obs.position.x) < 1.7) {
                     gameStarted = false;
                     document.getElementById('crashSound').play();
+                    
+                    // 清除計時器
+                    clearInterval(speedInterval);
+                    clearInterval(obstacleInterval);
+                    clearInterval(treeInterval);
+
                     setTimeout(() => { alert("💥 遊戲結束！得分: " + score); location.reload(); }, 200);
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
