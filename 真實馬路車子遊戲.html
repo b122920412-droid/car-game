@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D 體感賽車 - 最終發表版</title>
+    <title>3D 體感賽車 - 終極發表版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
@@ -16,7 +16,7 @@
 
     <div id="start-screen">
         <button id="startBtn" class="btn">開始挑戰</button>
-        <p class="hint">🔊 點擊後播放熱血賽車音樂<br>📱 左右傾斜手機控制</p>
+        <p class="hint">🔊 點擊後播放音樂<br>⌨️ 電腦：使用鍵盤左右鍵<br>📱 手機：傾斜手機或點擊左右側</p>
     </div>
 
     <div id="scoreDisplay">00000</div>
@@ -31,6 +31,38 @@
         let obstacles = [], trees = [], roadLines = [];
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let currentSpeed = 2.0; 
+
+        // 💡 重新補回鍵盤控制監聽
+        function initControls() {
+            // 鍵盤監聽
+            window.addEventListener('keydown', (e) => {
+                if (!gameStarted) return;
+                if (e.key === 'ArrowLeft' && currentLaneIndex > 0) currentLaneIndex--;
+                if (e.key === 'ArrowRight' && currentLaneIndex < 2) currentLaneIndex++;
+                targetX = lanes[currentLaneIndex];
+            });
+
+            // 手機觸控監聽
+            window.addEventListener('touchstart', (e) => {
+                if (!gameStarted) return;
+                const x = e.touches[0].clientX;
+                if (x < window.innerWidth / 2) { if (currentLaneIndex > 0) currentLaneIndex--; }
+                else { if (currentLaneIndex < 2) currentLaneIndex++; }
+                targetX = lanes[currentLaneIndex];
+            });
+
+            // 手機體感監聽
+            if (window.DeviceOrientationEvent) {
+                window.addEventListener('deviceorientation', (e) => {
+                    if (!gameStarted) return;
+                    const tilt = e.gamma; 
+                    if (tilt < -15) currentLaneIndex = 0;
+                    else if (tilt > 15) currentLaneIndex = 2;
+                    else currentLaneIndex = 1;
+                    targetX = lanes[currentLaneIndex];
+                });
+            }
+        }
 
         document.getElementById('startBtn').onclick = () => {
             const bgm = document.getElementById('bgm');
@@ -58,24 +90,6 @@
             }, 100);
             setInterval(createObstacle, 1000); 
             setInterval(createTree, 1500);
-        }
-
-        function initControls() {
-            window.addEventListener('touchstart', (e) => {
-                const x = e.touches[0].clientX;
-                if (x < window.innerWidth / 2) { if (currentLaneIndex > 0) currentLaneIndex--; }
-                else { if (currentLaneIndex < 2) currentLaneIndex++; }
-                targetX = lanes[currentLaneIndex];
-            });
-            if (window.DeviceOrientationEvent) {
-                window.addEventListener('deviceorientation', (e) => {
-                    const tilt = e.gamma; 
-                    if (tilt < -15) currentLaneIndex = 0;
-                    else if (tilt > 15) currentLaneIndex = 2;
-                    else currentLaneIndex = 1;
-                    targetX = lanes[currentLaneIndex];
-                });
-            }
         }
 
         function init3D() {
