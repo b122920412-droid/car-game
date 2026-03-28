@@ -3,150 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 體感賽車 - 最終豪華版</title>
+    <title>3D 體感賽車 - 期末發表版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
-        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; background: rgba(0,0,0,0.9); }
-        .btn { padding: 25px 60px; font-size: 30px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; box-shadow: 0 10px 30px rgba(0,123,255,0.4); }
-        #scoreDisplay { position: absolute; top: 20px; right: 30px; font-size: 45px; color: #0f0; font-family: monospace; font-weight: bold; text-shadow: 0 0 15px #0f0; z-index: 100; }
-        #mobile-ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; z-index: 2000; background: #000; color: white; text-align: center; }
-        .touch-zone { position: absolute; top: 0; width: 50%; height: 100%; z-index: 2005; }
-        #left-zone { left: 0; } #right-zone { right: 0; }
+        #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
+        .btn { padding: 20px 50px; font-size: 26px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+        #scoreDisplay { position: absolute; top: 20px; right: 20px; font-size: 35px; color: #0f0; font-family: monospace; font-weight: bold; z-index: 100; text-shadow: 0 0 10px #0f0; }
+        .hint { color: #666; margin-top: 20px; font-size: 14px; text-align: center; line-height: 1.6; }
     </style>
 </head>
 <body>
 
-    <div id="overlay">
-        <button id="startBtn" class="btn">開始挑戰 (電腦點此)</button>
-        <p style="color: #666; margin-top: 20px;">🌲 已加入 3D 樹木與動態加速系統</p>
+    <div id="start-screen">
+        <button id="startBtn" class="btn">開始挑戰</button>
+        <p class="hint">📱 左右傾斜手機控制<br>💻 電腦可用鍵盤左右鍵</p>
     </div>
 
     <div id="scoreDisplay">00000</div>
 
-    <div id="mobile-ui">
-        <div style="margin-top: 40vh;"><button id="sensorBtn" class="btn" style="background:#28a745">啟動遙控器</button></div>
-        <div id="left-zone" class="touch-zone"></div>
-        <div id="right-zone" class="touch-zone"></div>
-    </div>
-
-    <audio id="bgm" loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"></audio>
     <audio id="crashSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyC2-YD5-cdNaPf7-5Hfzjj_yGOHBaLWN6s",
-            authDomain: "ai-car-game.firebaseapp.com",
-            projectId: "ai-car-game",
-            databaseURL: "https://ai-car-game-default-rtdb.firebaseio.com/", 
-            storageBucket: "ai-car-game.firebasestorage.app",
-            appId: "1:610670474643:web:5c28d61b9300644fad2466"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-        const tiltRef = ref(db, 'car/tilt');
-        const moveRef = ref(db, 'car/move');
-
-        let scene, camera, renderer, car, gameStarted = false, score = 0, obstacles = [], trees = [], roadLines = [];
+    <script>
+        let scene, camera, renderer, car, gameStarted = false, score = 0;
+        let obstacles = [], trees = [], roadLines = [];
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let currentSpeed = 1.6;
 
-        // 鍵盤與手機控制邏輯
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowLeft' && currentLaneIndex > 0) currentLaneIndex--;
-            if (e.key === 'ArrowRight' && currentLaneIndex < 2) currentLaneIndex++;
-            targetX = lanes[currentLaneIndex];
-        });
+        // 💡 1. 核心控制：支援體感與鍵盤
+        function initControls() {
+            // 鍵盤
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft' && currentLaneIndex > 0) currentLaneIndex--;
+                if (e.key === 'ArrowRight' && currentLaneIndex < 2) currentLaneIndex++;
+                targetX = lanes[currentLaneIndex];
+            });
 
-        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-            document.getElementById('mobile-ui').style.display = 'block';
-            document.getElementById('overlay').style.display = 'none';
-            document.getElementById('sensorBtn').onclick = () => {
-                if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                    DeviceOrientationEvent.requestPermission().then(s => { if(s==='granted') window.addEventListener('deviceorientation', e => set(tiltRef, Math.round(e.gamma))); });
-                } else { window.addEventListener('deviceorientation', e => set(tiltRef, Math.round(e.gamma))); }
-            };
-            document.getElementById('left-zone').ontouchstart = (e) => { e.preventDefault(); set(moveRef, Date.now() + "_-1"); };
-            document.getElementById('right-zone').ontouchstart = (e) => { e.preventDefault(); set(moveRef, Date.now() + "_1"); };
+            // 手機點擊左右側
+            window.addEventListener('touchstart', (e) => {
+                const x = e.touches[0].clientX;
+                if (x < window.innerWidth / 2) { if (currentLaneIndex > 0) currentLaneIndex--; }
+                else { if (currentLaneIndex < 2) currentLaneIndex++; }
+                targetX = lanes[currentLaneIndex];
+            });
+
+            // 手機體感 (傾斜)
+            if (window.DeviceOrientationEvent) {
+                window.addEventListener('deviceorientation', (e) => {
+                    const tilt = e.gamma; 
+                    if (tilt < -15) currentLaneIndex = 0;
+                    else if (tilt > 15) currentLaneIndex = 2;
+                    else currentLaneIndex = 1;
+                    targetX = lanes[currentLaneIndex];
+                });
+            }
         }
 
         document.getElementById('startBtn').onclick = () => {
-            set(moveRef, "0_0"); set(tiltRef, 0); // 歸零
-            gameStarted = true;
-            document.getElementById('overlay').style.display = 'none';
-            document.getElementById('bgm').play();
-            init3D(); animate();
-            onValue(tiltRef, s => { 
-                const t = s.val() || 0; 
-                if (t < -15) currentLaneIndex = 0; else if (t > 15) currentLaneIndex = 2; else currentLaneIndex = 1; 
-                targetX = lanes[currentLaneIndex]; 
-            });
-            onValue(moveRef, s => { 
-                const d = parseInt((s.val()||"").split("_")[1]); 
-                if (d === -1 && currentLaneIndex > 0) currentLaneIndex--; 
-                if (d === 1 && currentLaneIndex < 2) currentLaneIndex++; 
-                targetX = lanes[currentLaneIndex]; 
-            });
-            setInterval(() => { 
-                if(gameStarted) { 
-                    score++; 
-                    document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0');
-                    if (score % 50 === 0 && currentSpeed < 3.5) currentSpeed += 0.1;
-                } 
-            }, 100);
-            setInterval(createTree, 1500); 
-            setInterval(createObstacle, 1100);
+            // iOS 體感授權
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission().then(permissionState => {
+                    if (permissionState === 'granted') start();
+                }).catch(console.error);
+            } else {
+                start();
+            }
         };
 
+        function start() {
+            gameStarted = true;
+            document.getElementById('start-screen').style.display = 'none';
+            init3D();
+            initControls();
+            animate();
+            
+            // 計分與自動加速
+            setInterval(() => {
+                if(gameStarted) {
+                    score++;
+                    document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0');
+                    if (score % 50 === 0 && currentSpeed < 4) currentSpeed += 0.1;
+                }
+            }, 100);
+            setInterval(createObstacle, 1100);
+            setInterval(createTree, 1500);
+        }
+
         function init3D() {
-            scene = new THREE.Scene(); scene.fog = new THREE.Fog(0x000000, 30, 150);
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x000000, 30, 140);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight); document.body.appendChild(renderer.domElement);
-            
-            // 瀝青路面
-            scene.add(new THREE.Mesh(new THREE.PlaneGeometry(16, 2000), new THREE.MeshPhongMaterial({ color: 0x1a1a1a })).rotateX(-Math.PI/2));
-            
-            // 路標線
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // 馬路
+            const road = new THREE.Mesh(new THREE.PlaneGeometry(16, 2000), new THREE.MeshPhongMaterial({ color: 0x1a1a1a }));
+            road.rotation.x = -Math.PI / 2;
+            scene.add(road);
+
+            // 虛線標線
             for (let i = 0; i < 40; i++) {
                 const line = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 5), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-                line.rotation.x = -Math.PI / 2; line.position.set(-1.75, 0.05, -i * 15);
+                line.rotation.x = -Math.PI / 2;
+                line.position.set(-1.75, 0.05, -i * 15);
                 scene.add(line); roadLines.push(line);
                 const line2 = line.clone(); line2.position.x = 1.75; scene.add(line2); roadLines.push(line2);
             }
 
             // 擬真賽車
             car = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 3.4), new THREE.MeshPhongMaterial({ color: 0x007bff, shininess: 100 }));
-            body.position.y = 0.5; car.add(body);
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 3.4), new THREE.MeshPhongMaterial({ color: 0x007bff, shininess: 80 }));
+            body.position.y = 0.5;
             const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 1.4), new THREE.MeshPhongMaterial({ color: 0x111111 }));
-            cabin.position.set(0, 1.05, -0.2); car.add(cabin);
-            const wG = new THREE.CylinderGeometry(0.4, 0.4, 0.4, 16); const wM = new THREE.MeshPhongMaterial({ color: 0x333333 });
-            [[-0.9,-1.1],[0.9,-1.1],[-0.9,1.1],[0.9,1.1]].forEach(p => { 
-                const w = new THREE.Mesh(wG, wM); w.rotation.z = Math.PI/2; w.position.set(p[0], 0.4, p[1]); car.add(w); 
-            });
-            scene.add(car); car.position.z = 12;
+            cabin.position.set(0, 1.05, -0.2);
+            car.add(body, cabin);
+            scene.add(car);
+            car.position.z = 12;
 
-            scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-            const sun = new THREE.DirectionalLight(0xffffff, 1); sun.position.set(5, 15, 10); scene.add(sun);
-            camera.position.set(0, 6, 26); camera.lookAt(0, 1, 0);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            const light = new THREE.DirectionalLight(0xffffff, 1);
+            light.position.set(5, 15, 10);
+            scene.add(light);
+
+            camera.position.set(0, 6, 26);
+            camera.lookAt(0, 1, 0);
         }
 
         function createTree() {
             if (!gameStarted) return;
-            for (let side of [-1, 1]) {
+            [-10, 10].forEach(x => {
                 const tree = new THREE.Group();
                 const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 2), new THREE.MeshPhongMaterial({ color: 0x8b4513 }));
-                trunk.position.y = 1; tree.add(trunk);
-                const leaves = new THREE.Mesh(new THREE.ConeGeometry(1, 3, 8), new THREE.MeshPhongMaterial({ color: 0x228b22 }));
-                leaves.position.y = 3; tree.add(leaves);
-                tree.position.set(side * 10, 0, -120); scene.add(tree); trees.push(tree);
-            }
+                const leaves = new THREE.Mesh(new THREE.ConeGeometry(1.2, 3, 8), new THREE.MeshPhongMaterial({ color: 0x228b22 }));
+                leaves.position.y = 2.5; trunk.position.y = 1;
+                tree.add(trunk, leaves);
+                tree.position.set(x, 0, -100);
+                scene.add(tree); trees.push(tree);
+            });
         }
 
         function createObstacle() {
@@ -160,15 +155,18 @@
             if (!gameStarted) return;
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
+
+            // 所有物體移動速度隨 currentSpeed 增加
             roadLines.forEach(l => { l.position.z += currentSpeed; if(l.position.z > 40) l.position.z = -200; });
-            trees.forEach((t, i) => { t.position.z += currentSpeed; if(t.position.z > 50) { scene.remove(t); trees.splice(i, 1); } });
+            trees.forEach((t, i) => { t.position.z += currentSpeed; if(t.position.z > 40) { scene.remove(t); trees.splice(i, 1); } });
             obstacles.forEach((obs, i) => {
                 obs.position.z += currentSpeed;
                 if (Math.abs(car.position.z - obs.position.z) < 2.5 && Math.abs(car.position.x - obs.position.x) < 1.7) {
-                    gameStarted = false; document.getElementById('crashSound').play();
-                    setTimeout(() => { alert("💥 遊戲結束！得分: " + score); location.reload(); }, 300);
+                    gameStarted = false;
+                    document.getElementById('crashSound').play();
+                    setTimeout(() => { alert("💥 遊戲結束！得分: " + score); location.reload(); }, 200);
                 }
-                if (obs.position.z > 50) { scene.remove(obs); obstacles.splice(i, 1); }
+                if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
             renderer.render(scene, camera);
         }
