@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D 體感賽車 - 期末發表版</title>
+    <title>3D 體感賽車 - 發表最終版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
@@ -16,12 +16,12 @@
 
     <div id="start-screen">
         <button id="startBtn" class="btn">開始挑戰</button>
-        <p class="hint">📱 左右傾斜手機 或 點擊左右側控制<br>🔊 音樂將在點擊後播放</p>
+        <p class="hint">🔊 點擊後將自動播放音樂<br>📱 左右傾斜手機 或 點擊左右側控制</p>
     </div>
 
     <div id="scoreDisplay">00000</div>
 
-    <audio id="bgm" loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"></audio>
+    <audio id="bgm" loop src="https://actions.google.com/sounds/v1/science_fiction/low_frequency_pulsing.ogg"></audio>
     <audio id="crashSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -32,39 +32,15 @@
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let currentSpeed = 1.6;
 
-        function initControls() {
-            window.addEventListener('keydown', (e) => {
-                if (e.key === 'ArrowLeft' && currentLaneIndex > 0) currentLaneIndex--;
-                if (e.key === 'ArrowRight' && currentLaneIndex < 2) currentLaneIndex++;
-                targetX = lanes[currentLaneIndex];
-            });
-
-            window.addEventListener('touchstart', (e) => {
-                const x = e.touches[0].clientX;
-                if (x < window.innerWidth / 2) { if (currentLaneIndex > 0) currentLaneIndex--; }
-                else { if (currentLaneIndex < 2) currentLaneIndex++; }
-                targetX = lanes[currentLaneIndex];
-            });
-
-            if (window.DeviceOrientationEvent) {
-                window.addEventListener('deviceorientation', (e) => {
-                    const tilt = e.gamma; 
-                    if (tilt < -15) currentLaneIndex = 0;
-                    else if (tilt > 15) currentLaneIndex = 2;
-                    else currentLaneIndex = 1;
-                    targetX = lanes[currentLaneIndex];
-                });
-            }
-        }
-
         document.getElementById('startBtn').onclick = () => {
-            // 💡 播放音樂 (必須在使用者點擊後才能播放)
-            document.getElementById('bgm').play();
+            // 💡 暴力解鎖音訊：先 play 再說，如果失敗會 catch
+            const bgm = document.getElementById('bgm');
+            bgm.volume = 0.5;
+            bgm.play().catch(e => console.log("音訊解鎖失敗:", e));
 
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 DeviceOrientationEvent.requestPermission().then(permissionState => {
-                    if (permissionState === 'granted') start();
-                    else start(); // 即使沒權限也強行開始(改用點擊控制)
+                    start();
                 }).catch(() => start());
             } else {
                 start();
@@ -87,6 +63,29 @@
             }, 100);
             setInterval(createObstacle, 1100);
             setInterval(createTree, 1500);
+        }
+
+        function initControls() {
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft' && currentLaneIndex > 0) currentLaneIndex--;
+                if (e.key === 'ArrowRight' && currentLaneIndex < 2) currentLaneIndex++;
+                targetX = lanes[currentLaneIndex];
+            });
+            window.addEventListener('touchstart', (e) => {
+                const x = e.touches[0].clientX;
+                if (x < window.innerWidth / 2) { if (currentLaneIndex > 0) currentLaneIndex--; }
+                else { if (currentLaneIndex < 2) currentLaneIndex++; }
+                targetX = lanes[currentLaneIndex];
+            });
+            if (window.DeviceOrientationEvent) {
+                window.addEventListener('deviceorientation', (e) => {
+                    const tilt = e.gamma; 
+                    if (tilt < -15) currentLaneIndex = 0;
+                    else if (tilt > 15) currentLaneIndex = 2;
+                    else currentLaneIndex = 1;
+                    targetX = lanes[currentLaneIndex];
+                });
+            }
         }
 
         function init3D() {
