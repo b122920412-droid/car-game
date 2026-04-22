@@ -8,16 +8,12 @@
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center; }
         .title { color: white; font-size: 42px; margin-bottom: 20px; font-weight: 900; letter-spacing: 5px; text-shadow: 0 0 15px #007bff; }
-        
-        /* 選項卡片樣式 */
         .setting-card { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 20px; width: 340px; margin-bottom: 15px; text-align: left; border: 1px solid rgba(255,255,255,0.1); }
         .setting-header { color: #00d2ff; font-size: 14px; margin-bottom: 10px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
         .option-group { display: flex; gap: 8px; flex-wrap: wrap; }
         .opt-btn { padding: 8px 18px; border: 1px solid #007bff; background: transparent; color: white; border-radius: 50px; cursor: pointer; transition: 0.3s; font-size: 13px; }
         .opt-btn.active { background: #007bff; box-shadow: 0 0 10px #007bff; border-color: #00ffcc; }
-        
         .start-btn { padding: 18px 50px; font-size: 24px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; margin-top: 25px; box-shadow: 0 5px 20px rgba(0,123,255,0.5); }
-        
         #ui-layer { position: absolute; top: 20px; left: 20px; right: 20px; pointer-events: none; z-index: 100; }
         #scoreDisplay { font-size: 32px; color: #0f0; font-family: monospace; font-weight: bold; float: right; text-shadow: 0 0 10px #0f0; }
         #hp-container { width: 180px; height: 12px; background: #333; border: 2px solid #fff; border-radius: 8px; overflow: hidden; display: none; margin-bottom: 5px; }
@@ -67,7 +63,7 @@
     </div>
 
     <audio id="bgm" loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"></audio>
-    <audio id="crashSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
+    <audio id="explosionSound" src="https://actions.google.com/sounds/v1/science_fiction/low_frequence_explosion.ogg" preload="auto"></audio>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
@@ -160,7 +156,6 @@
                 const line2 = line.clone(); line2.position.x = 1.75; scene.add(line2); roadLines.push(line2);
             }
 
-            // 💡 擬真賽車模型組合
             car = new THREE.Group();
             const carMat = new THREE.MeshPhongMaterial({ color: 0x007bff, specular: 0xaaaaaa, shininess: 100 });
             const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.5, 3.8), carMat);
@@ -220,14 +215,20 @@
             obstacles.forEach((obs, i) => {
                 obs.position.z += currentSpeed;
                 if (Math.abs(car.position.z - obs.position.z) < 2.5 && Math.abs(car.position.x - obs.position.x) < 1.6) {
-                    if (settings.mode === 'hard') {
-                        gameStarted = false; document.getElementById('crashSound').play();
-                        setTimeout(() => { alert("💀 任務失敗！得分: " + score); location.reload(); }, 200);
-                    } else {
-                        hp -= 25; document.getElementById('hp-bar').style.width = hp + "%";
-                        document.getElementById('crashSound').play();
-                        scene.remove(obs); obstacles.splice(i, 1);
-                        if (hp <= 0) { gameStarted = false; location.reload(); }
+                    if (!isInvincible) {
+                        // 💡 播放強化的爆炸音效
+                        const boom = document.getElementById('explosionSound');
+                        boom.currentTime = 0; // 重置聲音進度，確保每次撞擊都能立即響起
+                        boom.play();
+
+                        if (settings.mode === 'hard') {
+                            gameStarted = false;
+                            setTimeout(() => { alert("💀 任務失敗！得分: " + score); location.reload(); }, 200);
+                        } else {
+                            hp -= 25; document.getElementById('hp-bar').style.width = hp + "%";
+                            scene.remove(obs); obstacles.splice(i, 1);
+                            if (hp <= 0) { gameStarted = false; setTimeout(() => { alert("💔 引擎損毀！最終得分: " + score); location.reload(); }, 200); }
+                        }
                     }
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
