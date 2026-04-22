@@ -185,25 +185,29 @@
             camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
         }
 
-        // 💡 強化後的障礙物視覺邏輯
         function createObstacle() {
             if (!gameStarted) return;
             const type = Math.random();
             let obs;
             if (type < 0.3) { 
-                // 🍌 亮黃色香蕉皮 (圓環)
-                const bananaMat = new THREE.MeshPhongMaterial({ color: 0xffe135, specular: 0xffffff });
-                obs = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.1, 8, 12, Math.PI), bananaMat);
-                obs.rotation.x = Math.PI / 2;
-            } else if (type < 0.6) { 
-                // 🛢️ 擬真油桶 (深灰配紅條紋)
+                // 🍌 強化版：三連排巨大香蕉皮堆
                 obs = new THREE.Group();
-                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 1.8), new THREE.MeshPhongMaterial({ color: 0x333333 }));
-                const stripe = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.4), new THREE.MeshPhongMaterial({ color: 0xcc0000 }));
+                const bananaMat = new THREE.MeshPhongMaterial({ color: 0xfff200, specular: 0xffffff, shininess: 100 });
+                const b1 = new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.15, 8, 12, Math.PI), bananaMat);
+                b1.rotation.x = Math.PI / 2;
+                const b2 = b1.clone(); b2.position.set(0.4, 0, 0.4); b2.rotation.z = 0.5;
+                const b3 = b1.clone(); b3.position.set(-0.4, 0, 0.2); b3.rotation.z = -0.5;
+                obs.add(b1, b2, b3);
+                obs.scale.set(1.2, 1, 1.2); // 整體放大
+            } else if (type < 0.6) { 
+                // 🛢️ 擬真油桶
+                obs = new THREE.Group();
+                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 2), new THREE.MeshPhongMaterial({ color: 0x333333 }));
+                const stripe = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.72, 0.5), new THREE.MeshPhongMaterial({ color: 0xcc0000 }));
                 obs.add(barrel, stripe);
             } else { 
-                // 📦 木頭貨箱 (木棕色)
-                obs = new THREE.Mesh(new THREE.BoxGeometry(2, 1.8, 2), new THREE.MeshPhongMaterial({ color: 0x8b4513, specular: 0x222222 }));
+                // 📦 木頭貨箱
+                obs = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2, 2.2), new THREE.MeshPhongMaterial({ color: 0x8b4513, specular: 0x222222 }));
             }
             obs.position.set(lanes[Math.floor(Math.random() * 3)], 0.7, -120);
             scene.add(obs); obstacles.push(obs);
@@ -247,8 +251,6 @@
             
             obstacles.forEach((obs, i) => {
                 obs.position.z += currentSpeed;
-                
-                // 碰撞判定
                 const distZ = Math.abs(car.position.z - obs.position.z);
                 const distX = Math.abs(car.position.x - obs.position.x);
 
