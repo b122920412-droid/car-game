@@ -3,34 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>賽車小遊戲 - 四季擬真版</title>
+    <title>賽車小遊戲</title>
     <style>
-        /* 💡 介面排版完全回歸：漸層按鈕、中文文字與卡片式設計 */
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center; }
-        .btn-group { display: flex; flex-direction: column; gap: 15px; margin-top: 25px; }
-        .btn { padding: 18px 35px; font-size: 20px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; box-shadow: 0 5px 15px rgba(0,123,255,0.4); width: 220px; }
+        .title { color: white; font-size: 42px; margin-bottom: 20px; font-weight: 900; letter-spacing: 5px; text-shadow: 0 0 15px #007bff; }
         
-        #scoreDisplay { position: absolute; top: 20px; right: 20px; font-size: 30px; color: #0f0; font-family: monospace; font-weight: bold; z-index: 100; text-shadow: 0 0 10px #0f0; }
-        #hp-container { position: absolute; top: 20px; left: 20px; width: 180px; height: 15px; background: #333; border: 2px solid #fff; border-radius: 10px; overflow: hidden; display: none; z-index: 100; }
-        #hp-bar { width: 100%; height: 100%; background: #ff3333; transition: 0.3s; }
-        
-        .title { color: white; font-size: 36px; margin-bottom: 5px; font-weight: 900; letter-spacing: 2px; }
-        .hint { color: #555; font-size: 14px; margin-top: 25px; line-height: 1.8; }
-        #speedo { position: absolute; top: 60px; right: 20px; color: #fff; font-size: 18px; font-weight: bold; z-index: 100; font-family: monospace; }
-        
-        /* 中文選項卡片樣式 (參考 image_1.png) */
-        .setting-card { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 20px; width: 320px; margin-bottom: 15px; text-align: left; border: 1px solid rgba(255,255,255,0.1); }
+        /* 選項卡片樣式 */
+        .setting-card { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 20px; width: 340px; margin-bottom: 15px; text-align: left; border: 1px solid rgba(255,255,255,0.1); }
         .setting-header { color: #00d2ff; font-size: 14px; margin-bottom: 10px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
-        .option-group { display: flex; gap: 8px; flex-wrap: wrap; justify-content: start; }
+        .option-group { display: flex; gap: 8px; flex-wrap: wrap; }
         .opt-btn { padding: 8px 18px; border: 1px solid #007bff; background: transparent; color: white; border-radius: 50px; cursor: pointer; transition: 0.3s; font-size: 13px; }
         .opt-btn.active { background: #007bff; box-shadow: 0 0 10px #007bff; border-color: #00ffcc; }
+        
+        .start-btn { padding: 18px 50px; font-size: 24px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; margin-top: 25px; box-shadow: 0 5px 20px rgba(0,123,255,0.5); }
+        
+        #ui-layer { position: absolute; top: 20px; left: 20px; right: 20px; pointer-events: none; z-index: 100; }
+        #scoreDisplay { font-size: 32px; color: #0f0; font-family: monospace; font-weight: bold; float: right; text-shadow: 0 0 10px #0f0; }
+        #hp-container { width: 180px; height: 12px; background: #333; border: 2px solid #fff; border-radius: 8px; overflow: hidden; display: none; margin-bottom: 5px; }
+        #hp-bar { width: 100%; height: 100%; background: #ff3333; transition: 0.3s; }
+        #speedo { color: #fff; font-size: 18px; font-weight: bold; clear: both; float: right; margin-top: 5px; font-family: monospace; }
+        .hint { color: #666; font-size: 12px; margin-top: 20px; line-height: 1.6; }
     </style>
 </head>
 <body>
 
     <div id="start-screen">
-        <div class="title">四季賽車挑戰</div>
+        <div class="title">賽車小遊戲</div>
         
         <div class="setting-card">
             <div class="setting-header">🕹️ 操作模式</div>
@@ -45,7 +44,7 @@
             <div class="option-group">
                 <button id="diff-1" class="opt-btn active" onclick="setSetting('diff', 1)">簡單</button>
                 <button id="diff-2" class="opt-btn" onclick="setSetting('diff', 2)">普通</button>
-                <button id="diff-3" class="opt-btn" onclick="setSetting('diff', 3)">精英</button>
+                <button id="diff-3" class="opt-btn" onclick="setSetting('diff', 3)">困難</button>
             </div>
         </div>
 
@@ -57,13 +56,15 @@
             </div>
         </div>
 
-        <button class="btn" onclick="requestAndStart()">進入賽道</button>
+        <button class="start-btn" onclick="requestAndStart()">進入賽道</button>
         <div class="hint">⌨️ 電腦：左右方向鍵 / 📱 手機：點擊螢幕兩側或傾斜手機</div>
     </div>
 
-    <div id="hp-container"><div id="hp-bar"></div></div>
-    <div id="scoreDisplay">00000</div>
-    <div id="speedo">SPEED: 0 km/h</div>
+    <div id="ui-layer">
+        <div id="scoreDisplay">00000</div>
+        <div id="hp-container"><div id="hp-bar"></div></div>
+        <div id="speedo">0 KM/H</div>
+    </div>
 
     <audio id="bgm" loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"></audio>
     <audio id="crashSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
@@ -72,16 +73,13 @@
 
     <script>
         let scene, camera, renderer, car, gameStarted = false, score = 0;
-        let obstacles = [], trees = [], decor = [], roadLines = [];
+        let obstacles = [], decor = [], roadLines = [];
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let currentSpeed = 1.6, hp = 100, isInvincible = false;
-        
-        // 預設設定
         let settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
 
         function setSetting(type, val) {
             settings[type] = val;
-            // 更新 UI 狀態
             document.querySelectorAll(`[id^="${type}-"]`).forEach(btn => btn.classList.remove('active'));
             document.getElementById(`${type}-${val}`).classList.add('active');
         }
@@ -89,7 +87,6 @@
         function requestAndStart() {
             const bgm = document.getElementById('bgm'); bgm.volume = 0.2;
             bgm.play().catch(() => {});
-            
             if (settings.ctrl === 'tilt' && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 DeviceOrientationEvent.requestPermission().then(s => { start(); }).catch(() => start());
             } else { start(); }
@@ -99,30 +96,26 @@
             gameStarted = true;
             document.getElementById('start-screen').style.display = 'none';
             if (settings.mode === 'easy') document.getElementById('hp-container').style.display = 'block';
-            
-            currentSpeed = 1.2 + (settings.diff * 0.4); // 難度影響速度
+            currentSpeed = 1.2 + (settings.diff * 0.5); 
             init3D(); initControls(); animate();
             
             setInterval(() => {
                 if(gameStarted) {
                     score++;
                     document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0');
-                    document.getElementById('speedo').innerText = `SPEED: ${Math.floor(currentSpeed * 45)} km/h`;
-                    if (score % 80 === 0 && currentSpeed < 7) currentSpeed += (0.15 * settings.diff);
-                    updateEnvironment(); // 💡 檢查四季切換
+                    document.getElementById('speedo').innerText = `${Math.floor(currentSpeed * 50)} KM/H`;
+                    if (score % 80 === 0 && currentSpeed < 9) currentSpeed += (0.15 * settings.diff);
+                    updateSeasons(); 
                 }
             }, 100);
-            setInterval(createObstacle, 1000 - (settings.diff * 120)); 
-            setInterval(createDecor, 800); // 💡 生成真實裝飾物
+            setInterval(createObstacle, 1000 - (settings.diff * 120));
+            setInterval(createDecor, 800);
         }
 
-        // 💡 擬真四季場景切換系統 (每 150 分換一次)
-        function updateEnvironment() {
-            const seasonIndex = Math.floor(score / 150) % 4;
-            // 💡 柔和、擬真的四季配色 (亮一點)
-            const fogColors = [0xbbdefb, 0xfff9c4, 0xffcc80, 0xd1d9e6]; // 春(藍白)、夏(亮黃)、秋(暖橙)、冬(灰白)
+        function updateSeasons() {
+            const seasonIndex = Math.floor(score / 100) % 4;
+            const fogColors = [0xbbdefb, 0xfff9c4, 0xffcc80, 0xd1d9e6];
             const clearColors = [0x90caf9, 0xfff59d, 0xffb74d, 0xbdc9d8];
-
             scene.fog.color.setHex(fogColors[seasonIndex]);
             renderer.setClearColor(clearColors[seasonIndex]);
         }
@@ -133,16 +126,16 @@
                 if (e.key === 'ArrowRight' && currentLaneIndex < 2) currentLaneIndex++;
                 targetX = lanes[currentLaneIndex];
             });
-            if (settings.ctrl === 'tilt') {
-                window.addEventListener('deviceorientation', (e) => {
-                    const tilt = e.gamma; 
-                    if (tilt < -12) currentLaneIndex = 0; else if (tilt > 12) currentLaneIndex = 2; else currentLaneIndex = 1;
-                    targetX = lanes[currentLaneIndex];
-                });
-            } else {
+            if (settings.ctrl === 'touch') {
                 window.addEventListener('touchstart', (e) => {
                     if (e.touches[0].clientX < window.innerWidth / 2) { if (currentLaneIndex > 0) currentLaneIndex--; }
                     else { if (currentLaneIndex < 2) currentLaneIndex++; }
+                    targetX = lanes[currentLaneIndex];
+                });
+            } else {
+                window.addEventListener('deviceorientation', (e) => {
+                    const tilt = e.gamma; 
+                    if (tilt < -12) currentLaneIndex = 0; else if (tilt > 12) currentLaneIndex = 2; else currentLaneIndex = 1;
                     targetX = lanes[currentLaneIndex];
                 });
             }
@@ -150,8 +143,7 @@
 
         function init3D() {
             scene = new THREE.Scene();
-            scene.fog = new THREE.Fog(0xbbdefb, 30, 110); // 💡 初始場景迷霧 (亮白)
-            
+            scene.fog = new THREE.Fog(0xbbdefb, 30, 110);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -168,17 +160,24 @@
                 const line2 = line.clone(); line2.position.x = 1.75; scene.add(line2); roadLines.push(line2);
             }
 
-            // 💡 修正：變回之前的藍色方塊車模 (幾何幾何體) (參考 image_2.png)
-            const carGeo = new THREE.BoxGeometry(1.8, 0.6, 3.5);
-            const carMat = new THREE.MeshPhongMaterial({ color: 0x007bff, specular: 0xffffff, shininess: 100 });
-            car = new THREE.Mesh(carGeo, carMat);
-            car.position.y = 0.5;
-            scene.add(car);
-            car.position.z = 15;
+            // 💡 擬真賽車模型組合
+            car = new THREE.Group();
+            const carMat = new THREE.MeshPhongMaterial({ color: 0x007bff, specular: 0xaaaaaa, shininess: 100 });
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.5, 3.8), carMat);
+            body.position.y = 0.5; car.add(body);
+            const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 1.5), new THREE.MeshPhongMaterial({ color: 0x111111, shininess: 200 }));
+            cabin.position.set(0, 1.0, -0.2); car.add(cabin);
+            const spoiler = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.1, 0.6), new THREE.MeshPhongMaterial({ color: 0x0056b3 }));
+            spoiler.position.set(0, 1.2, 1.5); car.add(spoiler);
+            const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.5, 24);
+            const wheelMat = new THREE.MeshPhongMaterial({ color: 0x111111 });
+            [[-1,0.4,-1.3], [1,0.4,-1.3], [-1,0.4,1.3], [1,0.4,1.3]].forEach(p => {
+                const w = new THREE.Mesh(wheelGeo, wheelMat); w.rotation.z = Math.PI/2; w.position.set(p[0],p[1],p[2]); car.add(w);
+            });
+            scene.add(car); car.position.z = 15;
 
             scene.add(new THREE.AmbientLight(0xffffff, 0.6));
             const light = new THREE.PointLight(0xffffff, 1.2); light.position.set(0, 20, 20); scene.add(light);
-
             camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
         }
 
@@ -193,24 +192,22 @@
             scene.add(obs); obstacles.push(obs);
         }
 
-        // 💡 擬真四季裝飾生成系統 (樹木、防撞欄桿)
         function createDecor() {
             if (!gameStarted) return;
             const side = Math.random() > 0.5 ? 1 : -1;
             const xBase = side * 15;
             const type = Math.random();
-            let decorItem;
-            
-            if (type < 0.6) { // 真實樹木
+            let d;
+            if (type < 0.6) {
                 const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 6), new THREE.MeshPhongMaterial({ color: 0x4a2c10 }));
-                const foliage = new THREE.Mesh(new THREE.SphereGeometry(2), new THREE.MeshPhongMaterial({ color: 0x1a4a1a, shininess: 5 }));
+                const foliage = new THREE.Mesh(new THREE.SphereGeometry(2), new THREE.MeshPhongMaterial({ color: 0x1a4a1a }));
                 foliage.position.y = 4; trunk.add(foliage);
-                decorItem = trunk;
-            } else { // 擬真防撞欄桿
-                decorItem = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.5, 6), new THREE.MeshPhongMaterial({ color: 0xcccccc, specular: 0xaaaaaa }));
+                d = trunk;
+            } else {
+                d = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.5, 6), new THREE.MeshPhongMaterial({ color: 0xcccccc }));
             }
-            decorItem.position.set(xBase + (Math.random()*4), 0, -120);
-            scene.add(decorItem); decor.push(decorItem);
+            d.position.set(xBase + (Math.random()*4), 0, -120);
+            scene.add(d); decor.push(d);
         }
 
         function animate() {
@@ -218,25 +215,19 @@
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
             car.rotation.y = (targetX - car.position.x) * 0.1;
-
             roadLines.forEach(l => { l.position.z += currentSpeed; if(l.position.z > 40) l.position.z = -200; });
             decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); } });
-            
             obstacles.forEach((obs, i) => {
                 obs.position.z += currentSpeed;
-                // 💡 修正：變回之前的方塊碰撞判定邏輯 (參考 image_2.png)
                 if (Math.abs(car.position.z - obs.position.z) < 2.5 && Math.abs(car.position.x - obs.position.x) < 1.6) {
-                    if (!isInvincible) {
-                        if (navigator.vibrate) navigator.vibrate(200);
-                        if (settings.mode === 'hard') {
-                            gameStarted = false; document.getElementById('crashSound').play();
-                            setTimeout(() => { alert("💀 任務失敗！得分: " + score); location.reload(); }, 200);
-                        } else {
-                            hp -= 25; document.getElementById('hp-bar').style.width = hp + "%";
-                            document.getElementById('crashSound').play();
-                            scene.remove(obs); obstacles.splice(i, 1);
-                            if (hp <= 0) { gameStarted = false; location.reload(); }
-                        }
+                    if (settings.mode === 'hard') {
+                        gameStarted = false; document.getElementById('crashSound').play();
+                        setTimeout(() => { alert("💀 任務失敗！得分: " + score); location.reload(); }, 200);
+                    } else {
+                        hp -= 25; document.getElementById('hp-bar').style.width = hp + "%";
+                        document.getElementById('crashSound').play();
+                        scene.remove(obs); obstacles.splice(i, 1);
+                        if (hp <= 0) { gameStarted = false; location.reload(); }
                     }
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
