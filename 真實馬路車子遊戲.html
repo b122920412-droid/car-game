@@ -26,6 +26,7 @@
 
     <div id="start-screen">
         <div class="title">賽車小遊戲</div>
+        
         <div class="setting-card">
             <div class="setting-header">🕹️ 操作模式</div>
             <div class="option-group">
@@ -64,48 +65,53 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        // --- 音效處理 (更換為穩定來源) ---
-        let audioCtx, explosionBuffer, bgmBuffer, bgmSource;
-        const explosionUrl = 'https://actions.google.com/sounds/v1/science_fiction/low_frequence_explosion.ogg';
-        const bgmUrl = 'https://actions.google.com/sounds/v1/ambiences/industrial_hum_large_chamber.ogg'; // 換一個穩定的背景音
-
-        async function loadSounds() {
-            try {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                
-                // 載入爆炸聲
-                const expRes = await fetch(explosionUrl);
-                explosionBuffer = await audioCtx.decodeAudioData(await expRes.arrayBuffer());
-                
-                // 載入 BGM
-                const bgmRes = await fetch(bgmUrl);
-                bgmBuffer = await audioCtx.decodeAudioData(await bgmRes.arrayBuffer());
-            } catch (e) {
-                console.error("音效載入失敗", e);
-            }
-        }
-        loadSounds();
-
-        function playExplosion() {
-            if (audioCtx && explosionBuffer) {
-                const source = audioCtx.createBufferSource();
-                source.buffer = explosionBuffer;
-                source.connect(audioCtx.destination);
-                source.start(0);
-            }
+        // --- 核心：程式合成音效引擎 (Web Audio API) ---
+        let audioCtx;
+        
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
 
-        function playBGM() {
-            if (audioCtx && bgmBuffer) {
-                bgmSource = audioCtx.createBufferSource();
-                bgmSource.buffer = bgmBuffer;
-                bgmSource.loop = true;
-                const gainNode = audioCtx.createGain();
-                gainNode.gain.value = 0.3; // 控制音量
-                bgmSource.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-                bgmSource.start(0);
+        // 💡 合成背景音樂 (低頻引擎聲 + 律動感)
+        function playEngineSound() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(40, audioCtx.currentTime); // 低沉引擎聲
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime); // 音量要小
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            // 隨速度調整頻率
+            setInterval(() => {
+                if (gameStarted) osc.frequency.linearRampToValueAtTime(40 + currentSpeed * 10, audioCtx.currentTime + 0.1);
+                else osc.stop();
+            }, 100);
+        }
+
+        // 💡 合成爆炸音效 (白雜訊 + 低頻衰減)
+        function playExplosionSfx() {
+            if (!audioCtx) return;
+            const bufferSize = audioCtx.sampleRate * 0.5;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1; // 白雜訊
             }
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(1000, audioCtx.currentTime);
+            filter.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.5);
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            noise.start();
         }
 
         // --- 遊戲邏輯 ---
@@ -122,11 +128,9 @@
         }
 
         function requestAndStart() {
-            if (audioCtx && audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-            playBGM(); // 💡 啟動背景音樂
-
+            initAudio();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            playEngineSound(); // 開始背景引擎音
             if (settings.ctrl === 'tilt' && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 DeviceOrientationEvent.requestPermission().then(s => { start(); }).catch(() => start());
             } else { start(); }
@@ -259,7 +263,7 @@
             obstacles.forEach((obs, i) => {
                 obs.position.z += currentSpeed;
                 if (Math.abs(car.position.z - obs.position.z) < 2.5 && Math.abs(car.position.x - obs.position.x) < 1.6) {
-                    playExplosion(); // 💡 觸發爆炸聲
+                    playExplosionSfx(); // 💡 觸發合成爆炸音
                     if (settings.mode === 'hard') {
                         gameStarted = false;
                         setTimeout(() => { alert("💀 撞毀了！得分: " + score); location.reload(); }, 200);
