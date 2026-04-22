@@ -3,43 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>賽車小遊戲 - 期末優化版</title>
+    <title>賽車小遊戲 - 極限挑戰版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a1a, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center; }
-        .btn-group { display: flex; flex-direction: column; gap: 15px; margin-top: 25px; }
-        .btn { padding: 18px 35px; font-size: 20px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; box-shadow: 0 5px 15px rgba(0,123,255,0.4); width: 240px; transition: 0.3s; }
+        .btn { padding: 18px 35px; font-size: 20px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; box-shadow: 0 5px 15px rgba(0,123,255,0.4); width: 240px; }
         
         #ui-layer { position: absolute; top: 20px; left: 20px; right: 20px; pointer-events: none; z-index: 100; }
         #scoreDisplay { font-size: 36px; color: #0f0; font-family: monospace; font-weight: bold; text-shadow: 0 0 15px #0f0; float: right; }
-        #hp-label { color: white; font-size: 14px; margin-bottom: 5px; font-weight: bold; }
-        #hp-bar-container { width: 200px; height: 15px; background: #222; border: 2px solid #444; border-radius: 8px; overflow: hidden; }
-        #hp-bar { width: 100%; height: 100%; background: #ff3333; transition: 0.2s; box-shadow: 0 0 10px #ff3333; }
-        #speedo { color: #00d2ff; font-size: 18px; margin-top: 10px; font-weight: bold; text-shadow: 0 0 5px #00d2ff; }
+        #speedo { color: #ff00ff; font-size: 18px; margin-top: 10px; font-weight: bold; text-shadow: 0 0 5px #ff00ff; }
         
-        .title { color: white; font-size: 42px; margin-bottom: 5px; font-weight: 900; letter-spacing: 5px; text-shadow: 0 0 20px #007bff; }
-        #damage-flash { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,0,0,0.3); pointer-events: none; opacity: 0; transition: 0.1s; z-index: 99; }
+        .title { color: white; font-size: 42px; margin-bottom: 5px; font-weight: 900; letter-spacing: 5px; text-shadow: 0 0 20px #ff0055; }
+        .mode-label { color: #ff3333; font-weight: bold; letter-spacing: 2px; margin-top: 10px; }
     </style>
 </head>
 <body>
 
     <div id="start-screen">
-        <div class="title">TURBO RACER</div>
-        <div style="color: #00ffcc; letter-spacing: 2px;">FINAL INNOVATION PROJECT</div>
-        <div class="btn-group">
+        <div class="title">HARDCORE RACER</div>
+        <div class="mode-label">警告：一次碰撞即結束</div>
+        <div class="btn-group" style="margin-top:20px;">
             <button class="btn" onclick="setupControl('touch')">📱 觸控模式</button>
-            <button class="btn" onclick="setupControl('tilt')" style="background: linear-gradient(135deg, #6f42c1, #e83e8c);">🌀 體感模式</button>
+            <button class="btn" onclick="setupControl('tilt')" style="background: linear-gradient(135deg, #6f42c1, #e83e8c); margin-top:15px;">🌀 體感模式</button>
         </div>
-        <div class="hint" style="color:#666; margin-top:20px;">躲避障礙，收集閃電獲得無敵衝刺！</div>
     </div>
-
-    <div id="damage-flash"></div>
 
     <div id="ui-layer">
         <div id="scoreDisplay">00000</div>
-        <div id="hp-label">DURABILITY</div>
-        <div id="hp-bar-container"><div id="hp-bar"></div></div>
-        <div id="speedo">SPEED: 0 km/h</div>
+        <div id="speedo">SURVIVAL SPEED: 0 km/h</div>
     </div>
 
     <audio id="bgm" loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"></audio>
@@ -52,56 +43,46 @@
         let scene, camera, renderer, car, gameStarted = false, score = 0;
         let obstacles = [], trees = [], items = [], roadLines = [];
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
-        let currentSpeed = 1.5, hp = 100, isInvincible = false;
-        let controlType = 'touch';
+        let currentSpeed = 1.6, isInvincible = false;
 
         function setupControl(type) {
-            controlType = type;
             const bgm = document.getElementById('bgm');
-            bgm.volume = 0.2;
-            bgm.play().catch(() => {});
+            bgm.volume = 0.2; bgm.play().catch(() => {});
             if (type === 'tilt' && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 DeviceOrientationEvent.requestPermission().then(s => { start(); }).catch(() => start());
             } else { start(); }
+            document.getElementById('start-screen').style.display = 'none';
         }
 
         function start() {
             gameStarted = true;
-            document.getElementById('start-screen').style.display = 'none';
             init3D();
             initControls();
             animate();
-            
             setInterval(() => {
                 if(gameStarted) {
                     score++;
                     document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0');
-                    document.getElementById('speedo').innerText = `SPEED: ${Math.floor(currentSpeed * 45)} km/h`;
-                    if (score % 100 === 0 && currentSpeed < 5) currentSpeed += 0.15;
+                    document.getElementById('speedo').innerText = `SURVIVAL SPEED: ${Math.floor(currentSpeed * 50)} km/h`;
+                    if (score % 80 === 0 && currentSpeed < 6) currentSpeed += 0.18;
                 }
             }, 100);
-
-            setInterval(createObstacle, 1000); 
-            setInterval(createItem, 6000); // 道具出現頻率
-            setInterval(createTree, 1000);
+            setInterval(createObstacle, 850); 
+            setInterval(createItem, 7000);
+            setInterval(createTree, 900);
         }
 
         function initControls() {
-            if (controlType === 'touch') {
-                window.addEventListener('touchstart', (e) => {
-                    if (e.touches[0].clientX < window.innerWidth / 2) { if (currentLaneIndex > 0) currentLaneIndex--; }
-                    else { if (currentLaneIndex < 2) currentLaneIndex++; }
-                    targetX = lanes[currentLaneIndex];
-                });
-            } else if (controlType === 'tilt') {
-                window.addEventListener('deviceorientation', (e) => {
-                    const tilt = e.gamma; 
-                    if (tilt < -12) currentLaneIndex = 0;
-                    else if (tilt > 12) currentLaneIndex = 2;
-                    else currentLaneIndex = 1;
-                    targetX = lanes[currentLaneIndex];
-                });
-            }
+            window.addEventListener('touchstart', (e) => {
+                if (e.touches[0].clientX < window.innerWidth / 2) { if (currentLaneIndex > 0) currentLaneIndex--; }
+                else { if (currentLaneIndex < 2) currentLaneIndex++; }
+                targetX = lanes[currentLaneIndex];
+            });
+            window.addEventListener('deviceorientation', (e) => {
+                const tilt = e.gamma; 
+                if (tilt < -10) currentLaneIndex = 0; else if (tilt > 10) currentLaneIndex = 2; else currentLaneIndex = 1;
+                targetX = lanes[currentLaneIndex];
+            });
             window.addEventListener('keydown', (e) => {
                 if (e.key === 'ArrowLeft' && currentLaneIndex > 0) currentLaneIndex--;
                 if (e.key === 'ArrowRight' && currentLaneIndex < 2) currentLaneIndex++;
@@ -111,135 +92,101 @@
 
         function init3D() {
             scene = new THREE.Scene();
-            scene.fog = new THREE.Fog(0x000000, 30, 110);
-            
+            scene.fog = new THREE.Fog(0x000000, 20, 100);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.outputEncoding = THREE.sRGBEncoding;
             document.body.appendChild(renderer.domElement);
 
             const road = new THREE.Mesh(new THREE.PlaneGeometry(20, 2000), new THREE.MeshPhongMaterial({ color: 0x111111 }));
-            road.rotation.x = -Math.PI / 2;
-            scene.add(road);
-
-            for (let i = 0; i < 60; i++) {
-                const line = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 6), new THREE.MeshBasicMaterial({ color: 0x333333 }));
-                line.rotation.x = -Math.PI / 2;
-                line.position.set(-1.75, 0.05, -i * 12);
-                scene.add(line); roadLines.push(line);
-                const line2 = line.clone(); line2.position.x = 1.75; scene.add(line2); roadLines.push(line2);
-            }
+            road.rotation.x = -Math.PI / 2; scene.add(road);
 
             car = new THREE.Group();
-            const carMat = new THREE.MeshPhongMaterial({ color: 0x007bff, specular: 0xffffff, shininess: 100 });
-            const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 3.5), carMat);
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 3.5), new THREE.MeshPhongMaterial({ color: 0x007bff }));
             body.position.y = 0.5; car.add(body);
-            const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 1.5), new THREE.MeshPhongMaterial({ color: 0x000000 }));
-            cabin.position.set(0, 1, -0.2); car.add(cabin);
-            
             scene.add(car); car.position.z = 15;
 
-            scene.add(new THREE.AmbientLight(0xffffff, 0.3));
-            const spotLight = new THREE.SpotLight(0xffffff, 1);
-            spotLight.position.set(0, 30, 30);
-            scene.add(spotLight);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+            const light = new THREE.DirectionalLight(0xffffff, 0.8);
+            light.position.set(0, 20, 10); scene.add(light);
 
-            camera.position.set(0, 8, 28);
-            camera.lookAt(0, 2, 0);
+            camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
         }
 
+        // 💡 障礙物多元化：香蕉皮、圓柱、方塊
         function createObstacle() {
             if (!gameStarted) return;
-            const isMoving = Math.random() > 0.8;
-            const obsGeo = isMoving ? new THREE.CylinderGeometry(1, 1, 2.5, 16) : new THREE.BoxGeometry(2.2, 1.6, 2.6);
-            const obsMat = new THREE.MeshPhongMaterial({ color: isMoving ? 0xff5500 : 0xcc3333 });
-            const obs = new THREE.Mesh(obsGeo, obsMat);
-            obs.userData = { isMoving: isMoving, speed: (Math.random() - 0.5) * 0.1 };
-            obs.position.set(lanes[Math.floor(Math.random() * 3)], 0.8, -120);
+            const type = Math.random();
+            let obs;
+            
+            if (type < 0.3) {
+                // 香蕉皮 (使用 Torus 模擬彎曲形狀)
+                obs = new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.2, 8, 12, Math.PI), new THREE.MeshPhongMaterial({ color: 0xffcc00 }));
+                obs.rotation.x = Math.PI / 2;
+            } else if (type < 0.6) {
+                // 危險圓柱
+                obs = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 2, 16), new THREE.MeshPhongMaterial({ color: 0xcc3333 }));
+            } else {
+                // 傳統方塊
+                obs = new THREE.Mesh(new THREE.BoxGeometry(2, 1.2, 2), new THREE.MeshPhongMaterial({ color: 0xff0055 }));
+            }
+
+            obs.position.set(lanes[Math.floor(Math.random() * 3)], 0.6, -120);
             scene.add(obs); obstacles.push(obs);
         }
 
         function createItem() {
             if (!gameStarted) return;
-            const itemGeo = new THREE.TorusGeometry(0.6, 0.2, 8, 24);
-            const itemMat = new THREE.MeshPhongMaterial({ color: 0xffff00, emissive: 0xffff00 });
-            const item = new THREE.Mesh(itemGeo, itemMat);
-            item.position.set(lanes[Math.floor(Math.random() * 3)], 1.2, -120);
+            const item = new THREE.Mesh(new THREE.OctahedronGeometry(1), new THREE.MeshPhongMaterial({ color: 0x00ffff, emissive: 0x00ffff }));
+            item.position.set(lanes[Math.floor(Math.random() * 3)], 1, -120);
             scene.add(item); items.push(item);
         }
 
         function createTree() {
             if (!gameStarted) return;
-            [-18, 18].forEach(x => {
-                const tree = new THREE.Mesh(new THREE.BoxGeometry(1, 15, 1), new THREE.MeshBasicMaterial({ color: 0x111111 }));
-                tree.position.set(x + (Math.random()*5), 7.5, -120);
-                scene.add(tree); trees.push(tree);
-            });
+            const tree = new THREE.Mesh(new THREE.BoxGeometry(1, 20, 1), new THREE.MeshBasicMaterial({ color: 0x111111 }));
+            tree.position.set(Math.random() > 0.5 ? 18 : -18, 10, -120);
+            scene.add(tree); trees.push(tree);
         }
 
         function animate() {
             if (!gameStarted) return;
             requestAnimationFrame(animate);
-            
-            let moveSpeed = isInvincible ? currentSpeed * 1.5 : currentSpeed;
-
             car.position.x += (targetX - car.position.x) * 0.15;
-            car.rotation.y = (targetX - car.position.x) * 0.1;
-
+            
             if (isInvincible) {
-                car.children[0].material.color.setHex(0xffd700); 
-                car.children[0].material.emissive.setHex(0xffaa00 * (Math.sin(Date.now() * 0.01) * 0.5 + 0.5));
+                car.children[0].material.color.setHex(0x00ffff);
+                car.children[0].material.emissive.setHex(0x00ffff);
             } else {
                 car.children[0].material.color.setHex(0x007bff);
                 car.children[0].material.emissive.setHex(0x000000);
             }
 
-            roadLines.forEach(l => { l.position.z += moveSpeed; if(l.position.z > 40) l.position.z = -200; });
-            trees.forEach((t, i) => { t.position.z += moveSpeed; if(t.position.z > 40) { scene.remove(t); trees.splice(i, 1); } });
+            let speed = isInvincible ? currentSpeed * 1.3 : currentSpeed;
+            trees.forEach((t, i) => { t.position.z += speed; if(t.position.z > 40) { scene.remove(t); trees.splice(i, 1); } });
             
             obstacles.forEach((obs, i) => {
-                obs.position.z += moveSpeed;
-                if (obs.userData.isMoving) obs.position.x += Math.sin(Date.now() * 0.005) * 0.06;
-                
+                obs.position.z += speed;
+                // 💡 一次碰撞即結束邏輯
                 if (Math.abs(car.position.z - obs.position.z) < 2.5 && Math.abs(car.position.x - obs.position.x) < 1.6) {
                     if (!isInvincible) {
-                        hp -= 25; 
-                        document.getElementById('hp-bar').style.width = hp + "%";
-                        document.getElementById('damage-flash').style.opacity = "1";
-                        setTimeout(() => { document.getElementById('damage-flash').style.opacity = "0"; }, 100);
+                        gameStarted = false;
                         document.getElementById('crashSound').play();
-                        scene.remove(obs); obstacles.splice(i, 1);
-                        if (hp <= 0) {
-                            gameStarted = false;
-                            setTimeout(() => { alert("💥 車體毀損！最終得分: " + score); location.reload(); }, 200);
-                        }
+                        setTimeout(() => { alert("💀 碰撞發生！最終得分: " + score); location.reload(); }, 200);
                     }
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
 
             items.forEach((item, i) => {
-                item.position.z += moveSpeed;
-                item.rotation.y += 0.2;
+                item.position.z += speed; item.rotation.y += 0.1;
                 if (Math.abs(car.position.z - item.position.z) < 2 && Math.abs(car.position.x - item.position.x) < 1.5) {
-                    isInvincible = true;
-                    document.getElementById('powerupSound').play();
+                    isInvincible = true; document.getElementById('powerupSound').play();
                     scene.remove(item); items.splice(i, 1);
-                    
-                    // 無敵效果計時
-                    setTimeout(() => {
-                        let flashInterval = setInterval(() => { car.visible = !car.visible; }, 100);
-                        setTimeout(() => { 
-                            clearInterval(flashInterval); 
-                            car.visible = true; 
-                            isInvincible = false; 
-                        }, 1000);
-                    }, 3000);
+                    setTimeout(() => { isInvincible = false; }, 4000);
                 }
                 if (item.position.z > 40) { scene.remove(item); items.splice(i, 1); }
             });
-
             renderer.render(scene, camera);
         }
     </script>
