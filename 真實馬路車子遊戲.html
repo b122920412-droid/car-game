@@ -25,7 +25,6 @@
 
     <div id="start-screen">
         <div class="title">賽車小遊戲</div>
-        
         <div class="setting-card">
             <div class="setting-header">🕹️ 操作模式</div>
             <div class="option-group">
@@ -33,7 +32,6 @@
                 <button id="ctrl-tilt" class="opt-btn" onclick="setSetting('ctrl', 'tilt')">體感模式</button>
             </div>
         </div>
-
         <div class="setting-card">
             <div class="setting-header">🛡️ 挑戰難度</div>
             <div class="option-group">
@@ -42,7 +40,6 @@
                 <button id="diff-3" class="opt-btn" onclick="setSetting('diff', 3)">困難</button>
             </div>
         </div>
-
         <div class="setting-card">
             <div class="setting-header">🔥 遊戲模式</div>
             <div class="option-group">
@@ -50,7 +47,6 @@
                 <button id="mode-easy" class="opt-btn" onclick="setSetting('mode', 'easy')">❤️ 休閒 (有HP)</button>
             </div>
         </div>
-
         <button class="start-btn" onclick="requestAndStart()">進入賽道</button>
     </div>
 
@@ -81,15 +77,8 @@
         function requestAndStart() {
             const bgm = document.getElementById('bgm');
             const clang = document.getElementById('crashSound');
-            
-            bgm.volume = 0.2;
-            bgm.play().catch(() => {});
-            
-            // 💡 預先解鎖碰撞聲
-            clang.play().then(() => {
-                clang.pause();
-                clang.currentTime = 0;
-            }).catch(() => {});
+            bgm.volume = 0.2; bgm.play().catch(() => {});
+            clang.play().then(() => { clang.pause(); clang.currentTime = 0; }).catch(() => {});
 
             if (settings.ctrl === 'tilt' && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 DeviceOrientationEvent.requestPermission().then(s => { start(); }).catch(() => start());
@@ -99,7 +88,11 @@
         function start() {
             gameStarted = true;
             document.getElementById('start-screen').style.display = 'none';
-            if (settings.mode === 'easy') document.getElementById('hp-container').style.display = 'block';
+            if (settings.mode === 'easy') {
+                hp = 100;
+                document.getElementById('hp-bar').style.width = "100%";
+                document.getElementById('hp-container').style.display = 'block';
+            }
             currentSpeed = 1.2 + (settings.diff * 0.5); 
             init3D(); initControls(); animate();
             
@@ -225,16 +218,29 @@
                 if (Math.abs(car.position.z - obs.position.z) < 2.5 && Math.abs(car.position.x - obs.position.x) < 1.6) {
                     if (!isInvincible) {
                         const boom = document.getElementById('crashSound');
-                        boom.currentTime = 0;
-                        boom.play();
+                        boom.currentTime = 0; boom.play();
 
                         if (settings.mode === 'hard') {
                             gameStarted = false;
-                            setTimeout(() => { alert("💀 任務失敗！得分: " + score); location.reload(); }, 200);
+                            // 💡 修正：極限模式結算彈窗
+                            setTimeout(() => { 
+                                alert("💀 任務失敗！最終得分: " + score); 
+                                location.reload(); 
+                            }, 200);
                         } else {
-                            hp -= 25; document.getElementById('hp-bar').style.width = hp + "%";
-                            scene.remove(obs); obstacles.splice(i, 1);
-                            if (hp <= 0) { gameStarted = false; location.reload(); }
+                            hp -= 25; 
+                            document.getElementById('hp-bar').style.width = hp + "%";
+                            scene.remove(obs); 
+                            obstacles.splice(i, 1);
+                            
+                            if (hp <= 0) {
+                                gameStarted = false;
+                                // 💡 修正：休閒模式結算彈窗
+                                setTimeout(() => { 
+                                    alert("💔 引擎損毀！最終得分: " + score); 
+                                    location.reload(); 
+                                }, 200);
+                            }
                         }
                     }
                 }
