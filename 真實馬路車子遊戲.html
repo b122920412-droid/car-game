@@ -26,6 +26,7 @@
 
     <div id="start-screen">
         <div class="title">賽車小遊戲</div>
+        <div id="loading-text" style="color: #ffcc00; margin-bottom: 10px;">音效資源載入中...</div>
         
         <div class="setting-card">
             <div class="setting-header">🕹️ 操作模式</div>
@@ -62,12 +63,40 @@
         <div id="speedo">0 KM/H</div>
     </div>
 
-    <audio id="bgm" loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"></audio>
-    <audio id="explosionSound" src="https://actions.google.com/sounds/v1/science_fiction/low_frequence_explosion.ogg" preload="auto"></audio>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
+        // --- 音效處理核心 (Web Audio API) ---
+        let audioCtx, explosionBuffer, bgmAudio;
+        const explosionUrl = 'https://actions.google.com/sounds/v1/science_fiction/low_frequence_explosion.ogg';
+        const bgmUrl = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3';
+
+        // 預載爆炸音效
+        async function loadExplosion() {
+            try {
+                const response = await fetch(explosionUrl);
+                const arrayBuffer = await response.arrayBuffer();
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                explosionBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                document.getElementById('loading-text').innerText = "音效資源已就緒 ✅";
+                document.getElementById('loading-text').style.color = "#00ffcc";
+            } catch (e) {
+                console.error("音效載入失敗", e);
+                document.getElementById('loading-text').innerText = "部分音效載入失敗，但仍可開始遊戲";
+            }
+        }
+        loadExplosion();
+
+        function playExplosion() {
+            if (audioCtx && explosionBuffer) {
+                const source = audioCtx.createBufferSource();
+                source.buffer = explosionBuffer;
+                source.connect(audioCtx.destination);
+                source.start(0);
+            }
+        }
+
+        // --- 遊戲邏輯 ---
         let scene, camera, renderer, car, gameStarted = false, score = 0;
         let obstacles = [], decor = [], roadLines = [];
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
@@ -81,18 +110,16 @@
         }
 
         function requestAndStart() {
-            // 💡 解鎖音效機制：在使用者點擊按鈕時先 play 再立即 pause
-            const bgm = document.getElementById('bgm');
-            const boom = document.getElementById('explosionSound');
-            
-            bgm.volume = 0.2;
-            bgm.play().catch(e => console.log("音效載入失敗:", e));
-            
-            // 預先載入爆炸聲並瞬間靜音播放，讓瀏覽器允許後續調用
-            boom.play().then(() => {
-                boom.pause();
-                boom.currentTime = 0;
-            }).catch(() => {});
+            // 💡 點擊瞬間啟動 AudioContext (解鎖聲音)
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            // 啟動 BGM
+            bgmAudio = new Audio(bgmUrl);
+            bgmAudio.loop = true;
+            bgmAudio.volume = 0.2;
+            bgmAudio.play().catch(e => console.log("BGM 播放失敗", e));
 
             if (settings.ctrl === 'tilt' && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 DeviceOrientationEvent.requestPermission().then(s => { start(); }).catch(() => start());
@@ -227,10 +254,8 @@
                 obs.position.z += currentSpeed;
                 if (Math.abs(car.position.z - obs.position.z) < 2.5 && Math.abs(car.position.x - obs.position.x) < 1.6) {
                     if (!isInvincible) {
-                        // 💡 播放爆炸音效
-                        const boom = document.getElementById('explosionSound');
-                        boom.currentTime = 0;
-                        boom.play().catch(e => console.log("播放被攔截:", e));
+                        // 💡 呼叫強大的爆炸音效
+                        playExplosion();
 
                         if (settings.mode === 'hard') {
                             gameStarted = false;
