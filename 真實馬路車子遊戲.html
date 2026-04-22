@@ -3,29 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>賽車小遊戲 - 極限挑戰版</title>
+    <title>賽車小遊戲 - 極限修復版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a1a, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center; }
-        .btn { padding: 18px 35px; font-size: 20px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; box-shadow: 0 5px 15px rgba(0,123,255,0.4); width: 240px; }
-        
+        .btn { padding: 18px 35px; font-size: 20px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; box-shadow: 0 5px 15px rgba(0,123,255,0.4); width: 240px; margin-top: 15px; }
         #ui-layer { position: absolute; top: 20px; left: 20px; right: 20px; pointer-events: none; z-index: 100; }
         #scoreDisplay { font-size: 36px; color: #0f0; font-family: monospace; font-weight: bold; text-shadow: 0 0 15px #0f0; float: right; }
-        #speedo { color: #ff00ff; font-size: 18px; margin-top: 10px; font-weight: bold; text-shadow: 0 0 5px #ff00ff; }
-        
+        #speedo { color: #ff00ff; font-size: 18px; margin-top: 10px; font-weight: bold; }
         .title { color: white; font-size: 42px; margin-bottom: 5px; font-weight: 900; letter-spacing: 5px; text-shadow: 0 0 20px #ff0055; }
-        .mode-label { color: #ff3333; font-weight: bold; letter-spacing: 2px; margin-top: 10px; }
     </style>
 </head>
 <body>
 
     <div id="start-screen">
         <div class="title">HARDCORE RACER</div>
-        <div class="mode-label">警告：一次碰撞即結束</div>
-        <div class="btn-group" style="margin-top:20px;">
-            <button class="btn" onclick="setupControl('touch')">📱 觸控模式</button>
-            <button class="btn" onclick="setupControl('tilt')" style="background: linear-gradient(135deg, #6f42c1, #e83e8c); margin-top:15px;">🌀 體感模式</button>
-        </div>
+        <div style="color: #ff3333; font-weight: bold;">⚠️ 警報：一次碰撞即結束</div>
+        <button class="btn" onclick="setupControl('touch')">📱 觸控模式</button>
+        <button class="btn" onclick="setupControl('tilt')" style="background: linear-gradient(135deg, #6f42c1, #e83e8c);">🌀 體感模式</button>
     </div>
 
     <div id="ui-layer">
@@ -69,7 +64,7 @@
             }, 100);
             setInterval(createObstacle, 850); 
             setInterval(createItem, 7000);
-            setInterval(createTree, 900);
+            setInterval(createTree, 800); // 💡 加強樹木生成頻率
         }
 
         function initControls() {
@@ -92,60 +87,76 @@
 
         function init3D() {
             scene = new THREE.Scene();
-            scene.fog = new THREE.Fog(0x000000, 20, 100);
+            scene.fog = new THREE.Fog(0x000000, 30, 110);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            const road = new THREE.Mesh(new THREE.PlaneGeometry(20, 2000), new THREE.MeshPhongMaterial({ color: 0x111111 }));
-            road.rotation.x = -Math.PI / 2; scene.add(road);
+            // 💡 重新建立馬路模型
+            const roadGeo = new THREE.PlaneGeometry(20, 2000);
+            const roadMat = new THREE.MeshPhongMaterial({ color: 0x151515 });
+            const road = new THREE.Mesh(roadGeo, roadMat);
+            road.rotation.x = -Math.PI / 2;
+            scene.add(road);
 
+            // 💡 重新建立標線
+            for (let i = 0; i < 60; i++) {
+                const lineGeo = new THREE.PlaneGeometry(0.5, 7);
+                const lineMat = new THREE.MeshBasicMaterial({ color: 0x444444 });
+                const line = new THREE.Mesh(lineGeo, lineMat);
+                line.rotation.x = -Math.PI / 2;
+                line.position.set(-1.75, 0.05, -i * 12);
+                scene.add(line); roadLines.push(line);
+                const line2 = line.clone(); line2.position.x = 1.75; scene.add(line2); roadLines.push(line2);
+            }
+
+            // 💡 賽車模型
             car = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 3.5), new THREE.MeshPhongMaterial({ color: 0x007bff }));
+            const carMat = new THREE.MeshPhongMaterial({ color: 0x007bff, specular: 0xffffff, shininess: 100 });
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 3.5), carMat);
             body.position.y = 0.5; car.add(body);
             scene.add(car); car.position.z = 15;
 
-            scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-            const light = new THREE.DirectionalLight(0xffffff, 0.8);
-            light.position.set(0, 20, 10); scene.add(light);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            const light = new THREE.PointLight(0xffffff, 1);
+            light.position.set(0, 20, 20); scene.add(light);
 
             camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
         }
 
-        // 💡 障礙物多元化：香蕉皮、圓柱、方塊
         function createObstacle() {
             if (!gameStarted) return;
             const type = Math.random();
             let obs;
-            
             if (type < 0.3) {
-                // 香蕉皮 (使用 Torus 模擬彎曲形狀)
-                obs = new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.2, 8, 12, Math.PI), new THREE.MeshPhongMaterial({ color: 0xffcc00 }));
+                // 🍌 香蕉皮
+                obs = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.2, 8, 12, Math.PI), new THREE.MeshPhongMaterial({ color: 0xffcc00 }));
                 obs.rotation.x = Math.PI / 2;
             } else if (type < 0.6) {
-                // 危險圓柱
+                // 🛑 圓柱
                 obs = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 2, 16), new THREE.MeshPhongMaterial({ color: 0xcc3333 }));
             } else {
-                // 傳統方塊
-                obs = new THREE.Mesh(new THREE.BoxGeometry(2, 1.2, 2), new THREE.MeshPhongMaterial({ color: 0xff0055 }));
+                // 📦 方塊
+                obs = new THREE.Mesh(new THREE.BoxGeometry(2, 1.5, 2.5), new THREE.MeshPhongMaterial({ color: 0xff0055 }));
             }
-
-            obs.position.set(lanes[Math.floor(Math.random() * 3)], 0.6, -120);
+            obs.position.set(lanes[Math.floor(Math.random() * 3)], 0.7, -120);
             scene.add(obs); obstacles.push(obs);
         }
 
         function createItem() {
             if (!gameStarted) return;
             const item = new THREE.Mesh(new THREE.OctahedronGeometry(1), new THREE.MeshPhongMaterial({ color: 0x00ffff, emissive: 0x00ffff }));
-            item.position.set(lanes[Math.floor(Math.random() * 3)], 1, -120);
+            item.position.set(lanes[Math.floor(Math.random() * 3)], 1.2, -120);
             scene.add(item); items.push(item);
         }
 
         function createTree() {
             if (!gameStarted) return;
-            const tree = new THREE.Mesh(new THREE.BoxGeometry(1, 20, 1), new THREE.MeshBasicMaterial({ color: 0x111111 }));
-            tree.position.set(Math.random() > 0.5 ? 18 : -18, 10, -120);
+            // 💡 在馬路兩旁生成裝飾物（樹木/電線桿）
+            const xPos = Math.random() > 0.5 ? 15 : -15;
+            const tree = new THREE.Mesh(new THREE.BoxGeometry(1, 15, 1), new THREE.MeshBasicMaterial({ color: 0x111111 }));
+            tree.position.set(xPos + (Math.random()*5), 7.5, -120);
             scene.add(tree); trees.push(tree);
         }
 
@@ -162,24 +173,26 @@
                 car.children[0].material.emissive.setHex(0x000000);
             }
 
-            let speed = isInvincible ? currentSpeed * 1.3 : currentSpeed;
+            let speed = isInvincible ? currentSpeed * 1.4 : currentSpeed;
+            
+            // 💡 移動馬路標線與裝飾
+            roadLines.forEach(l => { l.position.z += speed; if(l.position.z > 40) l.position.z = -200; });
             trees.forEach((t, i) => { t.position.z += speed; if(t.position.z > 40) { scene.remove(t); trees.splice(i, 1); } });
             
             obstacles.forEach((obs, i) => {
                 obs.position.z += speed;
-                // 💡 一次碰撞即結束邏輯
                 if (Math.abs(car.position.z - obs.position.z) < 2.5 && Math.abs(car.position.x - obs.position.x) < 1.6) {
                     if (!isInvincible) {
                         gameStarted = false;
                         document.getElementById('crashSound').play();
-                        setTimeout(() => { alert("💀 碰撞發生！最終得分: " + score); location.reload(); }, 200);
+                        setTimeout(() => { alert("💀 撞毀了！最終得分: " + score); location.reload(); }, 200);
                     }
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
 
             items.forEach((item, i) => {
-                item.position.z += speed; item.rotation.y += 0.1;
+                item.position.z += speed; item.rotation.y += 0.15;
                 if (Math.abs(car.position.z - item.position.z) < 2 && Math.abs(car.position.x - item.position.x) < 1.5) {
                     isInvincible = true; document.getElementById('powerupSound').play();
                     scene.remove(item); items.splice(i, 1);
