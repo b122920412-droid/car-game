@@ -3,25 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>賽車小遊戲 - 終極選擇版</title>
+    <title>賽車小遊戲 - 終極進化版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center; color: white; }
-        .title { font-size: 36px; font-weight: 900; letter-spacing: 2px; margin-bottom: 10px; }
-        .setting-group { margin: 15px 0; display: flex; flex-direction: column; align-items: center; }
-        .setting-label { font-size: 14px; color: #aaa; margin-bottom: 8px; }
+        .title { font-size: 36px; font-weight: 900; letter-spacing: 2px; margin-bottom: 10px; color: #00ffcc; text-shadow: 0 0 20px #007bff; }
+        .setting-group { margin: 12px 0; display: flex; flex-direction: column; align-items: center; }
+        .setting-label { font-size: 14px; color: #888; margin-bottom: 8px; }
+        .option-group { display: flex; gap: 8px; }
+        .opt-btn { padding: 8px 16px; border: 2px solid #007bff; background: transparent; color: white; border-radius: 20px; cursor: pointer; transition: 0.3s; font-size: 13px; }
+        .opt-btn.active { background: #007bff; box-shadow: 0 0 15px #007bff; }
+        .start-btn { padding: 15px 45px; font-size: 22px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; margin-top: 25px; width: 240px; box-shadow: 0 5px 20px rgba(0,123,255,0.5); }
         
-        /* 選項按鈕樣式 */
-        .option-group { display: flex; gap: 10px; margin-bottom: 15px; }
-        .opt-btn { padding: 10px 20px; border: 2px solid #007bff; background: transparent; color: white; border-radius: 20px; cursor: pointer; transition: 0.3s; font-size: 14px; }
-        .opt-btn.active { background: #007bff; box-shadow: 0 0 10px #007bff; }
-
-        .start-btn { padding: 15px 40px; font-size: 20px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; margin-top: 20px; width: 220px; box-shadow: 0 5px 15px rgba(0,123,255,0.4); }
-        
-        #scoreDisplay { position: absolute; top: 20px; right: 20px; font-size: 30px; color: #0f0; font-family: monospace; font-weight: bold; z-index: 100; text-shadow: 0 0 10px #0f0; }
-        #speedo { position: absolute; top: 60px; right: 20px; color: #00d2ff; font-size: 16px; font-weight: bold; z-index: 100; font-family: monospace; }
-        #hp-container { position: absolute; top: 20px; left: 20px; width: 150px; height: 15px; background: #333; border: 2px solid #fff; border-radius: 10px; overflow: hidden; display: none; z-index: 100; }
+        #ui-layer { position: absolute; top: 20px; left: 20px; right: 20px; pointer-events: none; z-index: 100; }
+        #scoreDisplay { font-size: 32px; color: #0f0; font-family: monospace; font-weight: bold; text-shadow: 0 0 10px #0f0; float: right; }
+        #hp-container { width: 180px; height: 12px; background: #222; border: 2px solid #fff; border-radius: 10px; overflow: hidden; display: none; margin-bottom: 5px; }
         #hp-bar { width: 100%; height: 100%; background: #ff3333; transition: 0.3s; }
+        #speedo { color: #00d2ff; font-size: 16px; font-weight: bold; font-family: monospace; clear: both; float: right; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -30,7 +28,7 @@
         <div class="title">TURBO RACER</div>
         
         <div class="setting-group">
-            <div class="setting-label">🕹️ 選擇操作模式</div>
+            <div class="setting-label">🕹️ 控制方式</div>
             <div class="option-group">
                 <button id="ctrl-touch" class="opt-btn active" onclick="setSetting('ctrl', 'touch')">📱 觸控</button>
                 <button id="ctrl-tilt" class="opt-btn" onclick="setSetting('ctrl', 'tilt')">🌀 體感</button>
@@ -38,7 +36,7 @@
         </div>
 
         <div class="setting-group">
-            <div class="setting-label">🛡️ 選擇遊戲模式</div>
+            <div class="setting-label">🛡️ 挑戰模式</div>
             <div class="option-group">
                 <button id="mode-hard" class="opt-btn active" onclick="setSetting('mode', 'hard')">💀 極限 (一撞即死)</button>
                 <button id="mode-easy" class="opt-btn" onclick="setSetting('mode', 'easy')">❤️ 休閒 (有HP)</button>
@@ -46,7 +44,7 @@
         </div>
 
         <div class="setting-group">
-            <div class="setting-label">⚡ 選擇難度等級</div>
+            <div class="setting-label">⚡ 難度等級</div>
             <div class="option-group">
                 <button id="diff-1" class="opt-btn active" onclick="setSetting('diff', 1)">簡單</button>
                 <button id="diff-2" class="opt-btn" onclick="setSetting('diff', 2)">普通</button>
@@ -54,12 +52,14 @@
             </div>
         </div>
 
-        <button class="start-btn" onclick="requestAndStart()">開始挑戰</button>
+        <button class="start-btn" onclick="requestAndStart()">開始遊戲</button>
     </div>
 
-    <div id="hp-container"><div id="hp-bar"></div></div>
-    <div id="scoreDisplay">00000</div>
-    <div id="speedo">SPEED: 0 km/h</div>
+    <div id="ui-layer">
+        <div id="scoreDisplay">00000</div>
+        <div id="hp-container"><div id="hp-bar"></div></div>
+        <div id="speedo">SPEED: 0 km/h</div>
+    </div>
 
     <audio id="bgm" loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"></audio>
     <audio id="crashSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
@@ -72,13 +72,10 @@
         let obstacles = [], trees = [], items = [], roadLines = [];
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let currentSpeed = 1.6, hp = 100, isInvincible = false;
-        
-        // 預設設定
         let settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
 
         function setSetting(type, val) {
             settings[type] = val;
-            // 更新 UI 狀態
             document.querySelectorAll(`[id^="${type}-"]`).forEach(btn => btn.classList.remove('active'));
             document.getElementById(`${type}-${val}`).classList.add('active');
         }
@@ -86,7 +83,6 @@
         function requestAndStart() {
             const bgm = document.getElementById('bgm');
             bgm.volume = 0.2; bgm.play().catch(() => {});
-            
             if (settings.ctrl === 'tilt' && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 DeviceOrientationEvent.requestPermission().then(s => { start(); }).catch(() => start());
             } else { start(); }
@@ -96,35 +92,32 @@
             gameStarted = true;
             document.getElementById('start-screen').style.display = 'none';
             if (settings.mode === 'easy') document.getElementById('hp-container').style.display = 'block';
-            
-            // 難度影響初始速度
             currentSpeed = 1.2 + (settings.diff * 0.4); 
-
             init3D();
             initControls();
             animate();
-            
             setInterval(() => {
                 if(gameStarted) {
                     score++;
                     document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0');
                     document.getElementById('speedo').innerText = `SPEED: ${Math.floor(currentSpeed * 45)} km/h`;
-                    // 難度越高，加速越快
                     if (score % 80 === 0 && currentSpeed < 7) currentSpeed += (0.1 * settings.diff);
                 }
             }, 100);
-
-            setInterval(createObstacle, 900 - (settings.diff * 100)); // 難度越高障礙物越多
-            setInterval(createItem, 8000);
+            setInterval(createObstacle, 950 - (settings.diff * 100));
+            setInterval(createItem, 7500);
             setInterval(createTree, 1000);
         }
 
         function initControls() {
+            const handleMove = (dir) => {
+                if (dir === 'L' && currentLaneIndex > 0) currentLaneIndex--;
+                else if (dir === 'R' && currentLaneIndex < 2) currentLaneIndex++;
+                targetX = lanes[currentLaneIndex];
+            };
             if (settings.ctrl === 'touch') {
                 window.addEventListener('touchstart', (e) => {
-                    if (e.touches[0].clientX < window.innerWidth / 2) { if (currentLaneIndex > 0) currentLaneIndex--; }
-                    else { if (currentLaneIndex < 2) currentLaneIndex++; }
-                    targetX = lanes[currentLaneIndex];
+                    handleMove(e.touches[0].clientX < window.innerWidth / 2 ? 'L' : 'R');
                 });
             } else {
                 window.addEventListener('deviceorientation', (e) => {
@@ -134,9 +127,8 @@
                 });
             }
             window.addEventListener('keydown', (e) => {
-                if (e.key === 'ArrowLeft' && currentLaneIndex > 0) currentLaneIndex--;
-                if (e.key === 'ArrowRight' && currentLaneIndex < 2) currentLaneIndex++;
-                targetX = lanes[currentLaneIndex];
+                if (e.key === 'ArrowLeft') handleMove('L');
+                if (e.key === 'ArrowRight') handleMove('R');
             });
         }
 
@@ -149,23 +141,36 @@
             renderer.outputEncoding = THREE.sRGBEncoding;
             document.body.appendChild(renderer.domElement);
 
+            // 馬路
             const road = new THREE.Mesh(new THREE.PlaneGeometry(20, 2000), new THREE.MeshPhongMaterial({ color: 0x151515 }));
             road.rotation.x = -Math.PI / 2; scene.add(road);
-
             for (let i = 0; i < 60; i++) {
                 const line = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 7), new THREE.MeshBasicMaterial({ color: 0x444444 }));
-                line.rotation.x = -Math.PI / 2;
-                line.position.set(-1.75, 0.05, -i * 12);
+                line.rotation.x = -Math.PI / 2; line.position.set(-1.75, 0.05, -i * 12);
                 scene.add(line); roadLines.push(line);
                 const line2 = line.clone(); line2.position.x = 1.75; scene.add(line2); roadLines.push(line2);
             }
 
+            // 💡 擬真賽車組合模型 (底盤+車艙+輪胎+尾翼) 
             car = new THREE.Group();
-            const carMat = new THREE.MeshPhongMaterial({ color: 0x007bff, specular: 0xffffff, shininess: 100 });
-            car.add(new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 3.5), carMat));
+            const bodyMat = new THREE.MeshPhongMaterial({ color: 0x007bff, specular: 0xaaaaaa, shininess: 100 });
+            const carBody = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.5, 3.8), bodyMat);
+            carBody.position.y = 0.5; car.add(carBody);
+
+            const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 1.5), new THREE.MeshPhongMaterial({ color: 0x050505, shininess: 200 }));
+            cabin.position.set(0, 1.0, -0.2); car.add(cabin);
+
+            const spoiler = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.1, 0.6), new THREE.MeshPhongMaterial({ color: 0x0056b3 }));
+            spoiler.position.set(0, 1.2, 1.5); car.add(spoiler);
+
+            const wGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.5, 24);
+            const wMat = new THREE.MeshPhongMaterial({ color: 0x111111 });
+            [[-1,0.4,-1.3],[1,0.4,-1.3],[-1,0.4,1.3],[1,0.4,1.3]].forEach(p => {
+                const w = new THREE.Mesh(wGeo, wMat); w.rotation.z = Math.PI/2; w.position.set(p[0],p[1],p[2]); car.add(w);
+            });
             scene.add(car); car.position.z = 15;
 
-            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            scene.add(new THREE.AmbientLight(0xffffff, 0.4));
             const light = new THREE.PointLight(0xffffff, 1.2);
             light.position.set(0, 20, 20); scene.add(light);
             camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
@@ -175,12 +180,12 @@
             if (!gameStarted) return;
             const type = Math.random();
             let obs;
-            if (type < 0.3) {
-                obs = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.2, 8, 12, Math.PI), new THREE.MeshPhongMaterial({ color: 0xffcc00 }));
+            if (type < 0.35) { // 🍌 香蕉皮 
+                obs = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.18, 8, 12, Math.PI), new THREE.MeshPhongMaterial({ color: 0xffcc00 }));
                 obs.rotation.x = Math.PI / 2;
-            } else if (type < 0.6) {
-                obs = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 2, 16), new THREE.MeshPhongMaterial({ color: 0xcc3333 }));
-            } else {
+            } else if (type < 0.65) { // 🛑 圓柱
+                obs = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 2.2, 16), new THREE.MeshPhongMaterial({ color: 0xcc3333 }));
+            } else { // 📦 方塊
                 obs = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.5, 2.5), new THREE.MeshPhongMaterial({ color: 0xff0055 }));
             }
             obs.position.set(lanes[Math.floor(Math.random() * 3)], 0.7, -120);
@@ -196,8 +201,8 @@
 
         function createTree() {
             if (!gameStarted) return;
-            const tree = new THREE.Mesh(new THREE.BoxGeometry(1, 15, 1), new THREE.MeshBasicMaterial({ color: 0x111111 }));
-            tree.position.set(Math.random() > 0.5 ? 16 : -16, 7.5, -120);
+            const tree = new THREE.Mesh(new THREE.BoxGeometry(1, 20, 1), new THREE.MeshBasicMaterial({ color: 0x111111 }));
+            tree.position.set(Math.random() > 0.5 ? 16 : -16, 10, -120);
             scene.add(tree); trees.push(tree);
         }
 
@@ -205,13 +210,12 @@
             if (!gameStarted) return;
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
-            
+            car.rotation.y = (targetX - car.position.x) * 0.1;
+
             if (isInvincible) {
-                car.children[0].material.color.setHex(0xffd700);
-                car.children[0].material.emissive.setHex(0xffaa00);
+                car.children.forEach(c => { if(c.material) c.material.emissive.setHex(0xffaa00); });
             } else {
-                car.children[0].material.color.setHex(0x007bff);
-                car.children[0].material.emissive.setHex(0x000000);
+                car.children.forEach(c => { if(c.material) c.material.emissive.setHex(0x000000); });
             }
 
             roadLines.forEach(l => { l.position.z += currentSpeed; if(l.position.z > 40) l.position.z = -200; });
@@ -221,17 +225,16 @@
                 obs.position.z += currentSpeed;
                 if (Math.abs(car.position.z - obs.position.z) < 2.5 && Math.abs(car.position.x - obs.position.x) < 1.6) {
                     if (!isInvincible) {
-                        if (settings.mode === 'hard') {
+                        if (settings.mode === 'hard') { // 💀 極限模式 
                             gameStarted = false; document.getElementById('crashSound').play();
-                            setTimeout(() => { alert("💀 挑戰結束！得分: " + score); location.reload(); }, 200);
-                        } else {
-                            hp -= 20;
-                            document.getElementById('hp-bar').style.width = hp + "%";
+                            setTimeout(() => { alert("💥 挑戰結束！得分: " + score); location.reload(); }, 200);
+                        } else { // ❤️ 休閒模式 [cite: 31, 71]
+                            hp -= 25; document.getElementById('hp-bar').style.width = hp + "%";
                             document.getElementById('crashSound').play();
                             scene.remove(obs); obstacles.splice(i, 1);
                             if (hp <= 0) {
                                 gameStarted = false;
-                                setTimeout(() => { alert("❤️ HP 耗盡！得分: " + score); location.reload(); }, 200);
+                                setTimeout(() => { alert("💔 HP耗盡！得分: " + score); location.reload(); }, 200);
                             }
                         }
                     }
