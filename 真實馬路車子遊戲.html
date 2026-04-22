@@ -19,7 +19,6 @@
         #hp-container { width: 180px; height: 12px; background: #333; border: 2px solid #fff; border-radius: 8px; overflow: hidden; display: none; margin-bottom: 5px; }
         #hp-bar { width: 100%; height: 100%; background: #ff3333; transition: 0.3s; }
         #speedo { color: #fff; font-size: 18px; font-weight: bold; clear: both; float: right; margin-top: 5px; font-family: monospace; }
-        .hint { color: #666; font-size: 12px; margin-top: 20px; line-height: 1.6; }
     </style>
 </head>
 <body>
@@ -53,7 +52,6 @@
         </div>
 
         <button class="start-btn" onclick="requestAndStart()">進入賽道</button>
-        <div class="hint">⌨️ 電腦：左右方向鍵 / 📱 手機：點擊螢幕兩側或傾斜手機</div>
     </div>
 
     <div id="ui-layer">
@@ -63,7 +61,7 @@
     </div>
 
     <audio id="bgm" loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"></audio>
-    <audio id="explosionSound" src="https://actions.google.com/sounds/v1/science_fiction/low_frequence_explosion.ogg"></audio>
+    <audio id="crashSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
@@ -81,18 +79,16 @@
         }
 
         function requestAndStart() {
-            // 💡 點擊瞬間同時啟動 BGM 和爆炸音效（解鎖）
             const bgm = document.getElementById('bgm');
-            const boom = document.getElementById('explosionSound');
+            const clang = document.getElementById('crashSound');
             
             bgm.volume = 0.2;
-            bgm.play().catch(e => console.log("BGM 播放失敗:", e));
+            bgm.play().catch(() => {});
             
-            // 預先啟動爆炸音效（靜音播放一次以獲取瀏覽器權限）
-            boom.volume = 0.5;
-            boom.play().then(() => {
-                boom.pause();
-                boom.currentTime = 0;
+            // 💡 預先解鎖碰撞聲
+            clang.play().then(() => {
+                clang.pause();
+                clang.currentTime = 0;
             }).catch(() => {});
 
             if (settings.ctrl === 'tilt' && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -228,14 +224,13 @@
                 obs.position.z += currentSpeed;
                 if (Math.abs(car.position.z - obs.position.z) < 2.5 && Math.abs(car.position.x - obs.position.x) < 1.6) {
                     if (!isInvincible) {
-                        // 💡 播放經典爆炸音效
-                        const boom = document.getElementById('explosionSound');
+                        const boom = document.getElementById('crashSound');
                         boom.currentTime = 0;
-                        boom.play().catch(e => console.log("爆炸播放被攔截:", e));
+                        boom.play();
 
                         if (settings.mode === 'hard') {
                             gameStarted = false;
-                            setTimeout(() => { alert("💀 撞毀了！得分: " + score); location.reload(); }, 200);
+                            setTimeout(() => { alert("💀 任務失敗！得分: " + score); location.reload(); }, 200);
                         } else {
                             hp -= 25; document.getElementById('hp-bar').style.width = hp + "%";
                             scene.remove(obs); obstacles.splice(i, 1);
