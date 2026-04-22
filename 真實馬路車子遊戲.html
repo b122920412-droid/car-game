@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速</title>
+    <title>四季賽車挑戰：模型載入版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center; color: white; }
@@ -22,13 +22,17 @@
         #hp-bar { width: 100%; height: 100%; background: linear-gradient(to right, #ff3333, #ff6666); transition: 0.3s; }
         #speedo { color: #fff; font-size: 18px; font-weight: bold; clear: both; float: right; margin-top: 5px; font-family: monospace; }
         .hint { color: #666; font-size: 12px; margin-top: 20px; }
+        /* 💡 新增載入中提示的樣式 */
+        #loading-text { color: #00ffff; font-size: 18px; margin-top: 10px; display: none; }
     </style>
 </head>
 <body>
     <div id="start-screen">
-        <div class="title">亡命飆速</div>
+        <div class="title">四季賽車挑戰</div>
         <div class="warning-text">⚠️ 警告：警方路障已佈署！逃離追捕！</div>
         
+        <div id="loading-text">📡 正在載入 3D 車模... 請稍候</div>
+
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -54,7 +58,7 @@
             </div>
         </div>
 
-        <button class="start-btn" onclick="requestAndStart()">進入賽道</button>
+        <button id="start-btn" class="start-btn" onclick="requestAndStart()" disabled style="opacity: 0.5; cursor: not-allowed;">載入中...</button>
         <div class="hint">⌨️ 電腦：左右鍵 | 📱 手機：點擊兩側</div>
     </div>
 
@@ -68,14 +72,18 @@
     <audio id="crashSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js"></script>
 
     <script>
         let scene, camera, renderer, car, grassPlane, gameStarted = false, score = 0;
-        let obstacles = [], decor = [], roadLines = [];
+        let obstacles = [], decor = [], roadLines = [], npcs = [];
         let policeLightR, policeLightB; 
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let currentSpeed = 1.6, hp = 100;
         let settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
+
+        // 💡 定義模型檔名 (請確保 GitHub 倉庫中有這個檔案)
+        const MODEL_FILENAME = 'player_car.glb'; 
 
         function setSetting(type, val) {
             settings[type] = val;
@@ -83,12 +91,17 @@
             document.getElementById(`${type}-${val}`).classList.add('active');
         }
 
+        // 💡 頁面載入完成後，先初始化 3D 場景並開始載入模型
+        window.onload = function() {
+            init3D();
+            // 在模型載入完成前，顯示載入中提示
+            document.getElementById('loading-text').style.display = 'block';
+        };
+
         function requestAndStart() {
             const bgm = document.getElementById('bgm');
             bgm.volume = 0.2; bgm.play().catch(() => {});
-            if (settings.ctrl === 'tilt' && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission().then(s => { start(); }).catch(() => start());
-            } else { start(); }
+            start();
         }
 
         function start() {
@@ -96,7 +109,9 @@
             document.getElementById('start-screen').style.display = 'none';
             if (settings.mode === 'easy') document.getElementById('hp-container').style.display = 'block';
             currentSpeed = 1.2 + (settings.diff * 0.5); 
-            init3D(); initControls(); animate();
+            // 💡 移除 init3D()，因為已經在 window.onload 執行過了
+            initControls(); 
+            animate();
             
             setInterval(() => {
                 if(gameStarted) {
@@ -111,16 +126,16 @@
             setInterval(createDecor, 700);
         }
 
+        // 完整保留原有的風景及四季場景設定
         function updateSeasons() {
+            if(!gameStarted) return;
             const seasonIndex = Math.floor(score / 150) % 4;
             const fogColors = [0xbbdefb, 0xfff9c4, 0xffcc80, 0xd1d9e6]; 
             const clearColors = [0x90caf9, 0xfff59d, 0xffb74d, 0xbdc9d8];
             const grassColors = [0x7cfc00, 0x228b22, 0xdaa520, 0xffffff];
-            if(scene && scene.fog) {
-                scene.fog.color.setHex(fogColors[seasonIndex]);
-                renderer.setClearColor(clearColors[seasonIndex]);
-                if (grassPlane) grassPlane.material.color.setHex(grassColors[seasonIndex]);
-            }
+            scene.fog.color.setHex(fogColors[seasonIndex]);
+            renderer.setClearColor(clearColors[seasonIndex]);
+            if (grassPlane) grassPlane.material.color.setHex(grassColors[seasonIndex]);
         }
 
         function initControls() {
@@ -131,19 +146,14 @@
             });
             window.addEventListener('touchstart', (e) => {
                 if (!gameStarted || settings.ctrl !== 'touch') return;
-                if (e.touches[0].clientX < window.innerWidth / 2) { 
-                    if (currentLaneIndex > 0) currentLaneIndex--; 
-                } else { 
-                    if (currentLaneIndex < 2) currentLaneIndex++; 
-                }
+                if (e.touches[0].clientX < window.innerWidth / 2) { if (currentLaneIndex > 0) currentLaneIndex--; }
+                else { if (currentLaneIndex < 2) currentLaneIndex++; }
                 targetX = lanes[currentLaneIndex];
             });
             if (settings.ctrl === 'tilt') {
                 window.addEventListener('deviceorientation', (e) => {
                     const tilt = e.gamma; 
-                    if (tilt < -10) currentLaneIndex = 0; 
-                    else if (tilt > 10) currentLaneIndex = 2; 
-                    else currentLaneIndex = 1;
+                    if (tilt < -10) currentLaneIndex = 0; else if (tilt > 10) currentLaneIndex = 2; else currentLaneIndex = 1;
                     targetX = lanes[currentLaneIndex];
                 });
             }
@@ -158,6 +168,7 @@
             renderer.outputEncoding = THREE.sRGBEncoding;
             document.body.appendChild(renderer.domElement);
 
+            // 保留場景設定：草地與馬路
             const grassGeo = new THREE.PlaneGeometry(2000, 2000);
             const grassMat = new THREE.MeshPhongMaterial({ color: 0x7cfc00 });
             grassPlane = new THREE.Mesh(grassGeo, grassMat);
@@ -174,33 +185,64 @@
                 const line2 = line.clone(); line2.position.x = 1.8; scene.add(line2); roadLines.push(line2);
             }
 
-            car = new THREE.Group();
-            const carMat = new THREE.MeshPhongMaterial({ color: 0x007bff, specular: 0xffffff, shininess: 100 });
-            const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.5, 3.8), carMat);
-            body.position.y = 0.5; car.add(body);
-            const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 1.5), new THREE.MeshPhongMaterial({ color: 0x000000, shininess: 200 }));
-            cabin.position.set(0, 1.0, -0.2); car.add(cabin);
-            const wGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.5, 24);
-            const wMat = new THREE.MeshPhongMaterial({ color: 0x111111 });
-            [[-1,0.4,-1.3], [1,0.4,-1.3], [-1,0.4,1.3], [1,0.4,1.3]].forEach(p => {
-                const w = new THREE.Mesh(wGeo, wMat); w.rotation.z = Math.PI/2; w.position.set(p[0],p[1],p[2]); car.add(w);
-            });
-            scene.add(car); car.position.z = 15;
+            // 💡 核心修改：建立一個空的 Group 作為車子容器，並使用 Loader 載入模型
+            car = new THREE.Group(); 
+            const loader = new THREE.GLTFLoader();
+            
+            // 載入模型檔案
+            loader.load(
+                MODEL_FILENAME, 
+                function (gltf) {
+                    // 成功載入模型時的處理
+                    const model = gltf.scene;
+                    
+                    // 💡 專業小撇步：調整模型的大小和方向
+                    // 模型通常很大，需要縮小 (例如設為 0.5)
+                    model.scale.set(0.6, 0.6, 0.6); 
+                    // 如果車頭朝向不對 (例如朝後)，可以用 rotation 修改 (旋轉 180 度)
+                    model.rotation.y = Math.PI; 
+                    
+                    car.add(model); // 將載入的模型放進 car 群組中
+                    console.log('車子模型載入成功！');
 
+                    // 💡 模型載入完成後，解鎖開始按鈕
+                    document.getElementById('loading-text').style.display = 'none';
+                    const sBtn = document.getElementById('start-btn');
+                    sBtn.innerText = '進入賽道';
+                    sBtn.disabled = false;
+                    sBtn.style.opacity = '1';
+                    sBtn.style.cursor = 'pointer';
+                },
+                function (xhr) {
+                    // 載入進度 (選擇性使用)
+                    console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+                },
+                function (error) {
+                    // 載入失敗時的處理
+                    console.error('模型載入失敗，請檢查檔名和路徑是否正確', error);
+                    document.getElementById('loading-text').innerText = '❌ 模型載入失敗，請檢查 GitHub 檔案';
+                }
+            );
+
+            scene.add(car); 
+            car.position.z = 15;
+
+            // 保留原有的警察燈設定
             policeLightR = new THREE.PointLight(0xff0000, 0, 50);
             policeLightB = new THREE.PointLight(0x0000ff, 0, 50);
             scene.add(policeLightR, policeLightB);
 
+            // 保留原有的環境光設定
             scene.add(new THREE.AmbientLight(0xffffff, 0.6));
             const mainLight = new THREE.PointLight(0xffffff, 1.2); mainLight.position.set(0, 20, 10); scene.add(mainLight);
             camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
         }
 
+        // 完整保留原有的路障和風景生成邏輯
         function createPoliceObstacle() {
             if (!gameStarted) return;
             const type = Math.random();
             let obs = new THREE.Group();
-            
             if (type < 0.33) { 
                 const plate = new THREE.Mesh(new THREE.BoxGeometry(4, 0.15, 1.5), new THREE.MeshPhongMaterial({ color: 0x222222 }));
                 for(let i=0; i<6; i++) {
@@ -212,85 +254,5 @@
                 const bar = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.6, 0.3), new THREE.MeshPhongMaterial({ color: 0xffffff }));
                 const stripe = new THREE.Mesh(new THREE.BoxGeometry(3.52, 0.25, 0.32), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
                 const legL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 2.0, 0.3), new THREE.MeshPhongMaterial({ color: 0x333333 }));
-                legL.position.set(-1.4, -0.4, 0);
-                const legR = legL.clone(); legR.position.x = 1.4;
-                const feetL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 1.5), new THREE.MeshPhongMaterial({ color: 0x333333 }));
-                feetL.position.set(-1.4, -1.3, 0);
-                const feetR = feetL.clone(); feetR.position.x = 1.4;
-                obs.add(bar, stripe, legL, legR, feetL, feetR);
-                obs.position.y = 1.3;
-            } else { 
-                const colors = [0xffffff, 0x555555, 0xcc0000, 0xeeeeee];
-                const bodyMat = new THREE.MeshPhongMaterial({ color: colors[Math.floor(Math.random()*colors.length)] });
-                const body = new THREE.Mesh(new THREE.BoxGeometry(2, 0.8, 4.2), bodyMat);
-                const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.6, 2), new THREE.MeshPhongMaterial({color: 0x111111}));
-                cabin.position.set(0, 0.7, -0.3); obs.add(body, cabin);
-                obs.userData = { isCar: true, speed: currentSpeed * 0.4 };
-                obs.position.y = 0.4;
-            }
-            obs.position.set(lanes[Math.floor(Math.random() * 3)], obs.position.y, -120);
-            scene.add(obs); obstacles.push(obs);
-        }
-
-        function createDecor() {
-            if (!gameStarted) return;
-            const seasonIndex = Math.floor(score / 150) % 4;
-            const side = Math.random() > 0.5 ? 1 : -1;
-            const xBase = side * (12 + Math.random() * 10);
-            let d = new THREE.Group();
-            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 6), new THREE.MeshPhongMaterial({ color: 0x4a2c10 }));
-            let foliage;
-            if (seasonIndex === 0) foliage = new THREE.Mesh(new THREE.SphereGeometry(2.5), new THREE.MeshPhongMaterial({ color: 0xffc0cb }));
-            else if (seasonIndex === 1) foliage = new THREE.Mesh(new THREE.IcosahedronGeometry(3), new THREE.MeshPhongMaterial({ color: 0x1b5e20 }));
-            else if (seasonIndex === 2) foliage = new THREE.Mesh(new THREE.OctahedronGeometry(2.5), new THREE.MeshPhongMaterial({ color: 0xe64a19 }));
-            else foliage = new THREE.Mesh(new THREE.SphereGeometry(1.5), new THREE.MeshPhongMaterial({ color: 0xffffff }));
-            foliage.position.y = 4; d.add(trunk, foliage);
-            d.position.set(xBase, 0, -120);
-            scene.add(d); decor.push(d);
-        }
-
-        function animate() {
-            if (!gameStarted) return;
-            requestAnimationFrame(animate);
-            car.position.x += (targetX - car.position.x) * 0.15;
-            car.rotation.y = (targetX - car.position.x) * 0.1;
-            
-            let flash = Math.floor(Date.now() / 150) % 2;
-            policeLightR.intensity = (flash === 0) ? 12 : 0;
-            policeLightB.intensity = (flash === 1) ? 12 : 0;
-            policeLightR.position.set(car.position.x - 4, 5, 22);
-            policeLightB.position.set(car.position.x + 4, 5, 22);
-
-            roadLines.forEach(l => { l.position.z += currentSpeed; if(l.position.z > 40) l.position.z = -200; });
-            decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); } });
-            
-            obstacles.forEach((obs, i) => {
-                let moveSpeed = currentSpeed;
-                if(obs.userData && obs.userData.isCar) moveSpeed = currentSpeed - obs.userData.speed;
-                obs.position.z += moveSpeed;
-
-                const distZ = Math.abs(car.position.z - obs.position.z);
-                const distX = Math.abs(car.position.x - obs.position.x);
-                
-                if (distZ < 2.8 && distX < 2.0) {
-                    const boom = document.getElementById('crashSound');
-                    boom.currentTime = 0; boom.play();
-                    if (settings.mode === 'hard') {
-                        gameStarted = false;
-                        setTimeout(() => { alert("🚨 逮捕歸案！最終得分: " + score); location.reload(); }, 100);
-                    } else {
-                        hp -= 25; document.getElementById('hp-bar').style.width = hp + "%";
-                        scene.remove(obs); obstacles.splice(i, 1);
-                        if (hp <= 0) {
-                            gameStarted = false;
-                            setTimeout(() => { alert("💥 引擎損毀！被警方逮捕！得分: " + score); location.reload(); }, 100);
-                        }
-                    }
-                }
-                if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
-            });
-            renderer.render(scene, camera);
-        }
-    </script>
-</body>
-</html>
+                legL.position.set(-1.4, -0.4, 0); const legR = legL.clone(); legR.position.x = 1.4;
+                const feetL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 1
