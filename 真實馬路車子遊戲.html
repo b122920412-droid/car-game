@@ -30,8 +30,8 @@
         <div class="setting-card">
             <div class="setting-header">🕹️ 操作模式</div>
             <div class="option-group">
-                <button id="ctrl-touch" class="opt-btn active" onclick="setSetting('ctrl', 'touch')">鍵盤 / 手機觸控</button>
-                <button id="ctrl-tilt" class="opt-btn" onclick="setSetting('ctrl', 'tilt')">體感陀螺儀</button>
+                <button id="ctrl-touch" class="opt-btn active" onclick="setSetting('ctrl', 'touch')">鍵盤 / 點擊模式</button>
+                <button id="ctrl-tilt" class="opt-btn" onclick="setSetting('ctrl', 'tilt')">體感模式</button>
             </div>
         </div>
 
@@ -81,8 +81,19 @@
         }
 
         function requestAndStart() {
-            const bgm = document.getElementById('bgm'); bgm.volume = 0.2;
-            bgm.play().catch(() => {});
+            // 💡 解鎖音效機制：在使用者點擊按鈕時先 play 再立即 pause
+            const bgm = document.getElementById('bgm');
+            const boom = document.getElementById('explosionSound');
+            
+            bgm.volume = 0.2;
+            bgm.play().catch(e => console.log("音效載入失敗:", e));
+            
+            // 預先載入爆炸聲並瞬間靜音播放，讓瀏覽器允許後續調用
+            boom.play().then(() => {
+                boom.pause();
+                boom.currentTime = 0;
+            }).catch(() => {});
+
             if (settings.ctrl === 'tilt' && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 DeviceOrientationEvent.requestPermission().then(s => { start(); }).catch(() => start());
             } else { start(); }
@@ -216,10 +227,10 @@
                 obs.position.z += currentSpeed;
                 if (Math.abs(car.position.z - obs.position.z) < 2.5 && Math.abs(car.position.x - obs.position.x) < 1.6) {
                     if (!isInvincible) {
-                        // 💡 播放強化的爆炸音效
+                        // 💡 播放爆炸音效
                         const boom = document.getElementById('explosionSound');
-                        boom.currentTime = 0; // 重置聲音進度，確保每次撞擊都能立即響起
-                        boom.play();
+                        boom.currentTime = 0;
+                        boom.play().catch(e => console.log("播放被攔截:", e));
 
                         if (settings.mode === 'hard') {
                             gameStarted = false;
