@@ -100,19 +100,19 @@
                     score++;
                     document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0');
                     document.getElementById('speedo').innerText = `${Math.floor(currentSpeed * 50)} KM/H`;
-                    if (score % 80 === 0 && currentSpeed < 9.5) currentSpeed += (0.15 * settings.diff);
+                    if (score % 80 === 0 && currentSpeed < 10) currentSpeed += (0.15 * settings.diff);
                     updateSeasons(); 
                 }
             }, 100);
             setInterval(createObstacle, 1000 - (settings.diff * 120));
-            setInterval(createDecor, 600); // 💡 增加裝飾密度
+            setInterval(createDecor, 600);
         }
 
         function updateSeasons() {
             const seasonIndex = Math.floor(score / 100) % 4;
             const fogColors = [0xbbdefb, 0xfff9c4, 0xffcc80, 0xd1d9e6];
             const clearColors = [0x90caf9, 0xfff59d, 0xffb74d, 0xbdc9d8];
-            const grassColors = [0x7cfc00, 0x228b22, 0xdaa520, 0xffffff];
+            const grassColors = [0x7cfc00, 0x228b22, 0xdaa520, 0xffffff]; // 嫩綠、深綠、金黃、純白
 
             scene.fog.color.setHex(fogColors[seasonIndex]);
             renderer.setClearColor(clearColors[seasonIndex]);
@@ -149,6 +149,7 @@
             renderer.outputEncoding = THREE.sRGBEncoding;
             document.body.appendChild(renderer.domElement);
 
+            // 💡 建立草地
             const grassGeo = new THREE.PlaneGeometry(2000, 2000);
             const grassMat = new THREE.MeshPhongMaterial({ color: 0x7cfc00 });
             grassPlane = new THREE.Mesh(grassGeo, grassMat);
@@ -196,7 +197,6 @@
             scene.add(obs); obstacles.push(obs);
         }
 
-        // 💡 升級：對應季節的植物動物裝飾系統
         function createDecor() {
             if (!gameStarted) return;
             const seasonIndex = Math.floor(score / 100) % 4;
@@ -204,27 +204,22 @@
             const xBase = side * (12 + Math.random() * 8);
             let d = new THREE.Group();
 
-            if (seasonIndex === 0) { // 🌸 春季：櫻花樹 + 小花
+            if (seasonIndex === 0) { // 春：櫻花樹
                 const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 5), new THREE.MeshPhongMaterial({ color: 0x4a2c10 }));
                 const foliage = new THREE.Mesh(new THREE.SphereGeometry(2), new THREE.MeshPhongMaterial({ color: 0xffc0cb }));
                 foliage.position.y = 3.5; d.add(trunk, foliage);
-            } else if (seasonIndex === 1) { // 🌳 夏季：茂盛大樹
+            } else if (seasonIndex === 1) { // 夏：深綠大樹
                 const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 7), new THREE.MeshPhongMaterial({ color: 0x3d2817 }));
-                const foliage = new THREE.Mesh(new THREE.IcosahedronGeometry(3, 0), new THREE.MeshPhongMaterial({ color: 0x1b5e20 }));
+                const foliage = new THREE.Mesh(new THREE.IcosahedronGeometry(3), new THREE.MeshPhongMaterial({ color: 0x1b5e20 }));
                 foliage.position.y = 4.5; d.add(trunk, foliage);
-            } else if (seasonIndex === 2) { // 🍁 秋季：楓樹
+            } else if (seasonIndex === 2) { // 秋：楓樹
                 const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 6), new THREE.MeshPhongMaterial({ color: 0x4e342e }));
                 const foliage = new THREE.Mesh(new THREE.OctahedronGeometry(2.5), new THREE.MeshPhongMaterial({ color: 0xe64a19 }));
                 foliage.position.y = 4; d.add(trunk, foliage);
-            } else { // ⛄ 冬季：枯樹 + 雪人
-                if (Math.random() > 0.5) { // 枯樹
-                    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 5), new THREE.MeshPhongMaterial({ color: 0x222222 }));
-                    d.add(trunk);
-                } else { // 雪人
-                    const body = new THREE.Mesh(new THREE.SphereGeometry(1.2), new THREE.MeshPhongMaterial({ color: 0xffffff }));
-                    const head = new THREE.Mesh(new THREE.SphereGeometry(0.8), new THREE.MeshPhongMaterial({ color: 0xffffff }));
-                    head.position.y = 1.6; d.add(body, head);
-                }
+            } else { // 冬：雪人
+                const body = new THREE.Mesh(new THREE.SphereGeometry(1.2), new THREE.MeshPhongMaterial({ color: 0xffffff }));
+                const head = new THREE.Mesh(new THREE.SphereGeometry(0.8), new THREE.MeshPhongMaterial({ color: 0xffffff }));
+                head.position.y = 1.6; d.add(body, head);
             }
             d.position.set(xBase, 0, -120);
             scene.add(d); decor.push(d);
@@ -241,28 +236,25 @@
             
             obstacles.forEach((obs, i) => {
                 obs.position.z += currentSpeed;
-                // 💡 關鍵修復：由於車子現在是 Group，使用 box 判定更準確
-                const carX = car.position.x;
-                const carZ = car.position.z;
-                const obsX = obs.position.x;
-                const obsZ = obs.position.z;
+                
+                // 💡 強化的碰撞判定邏輯
+                const distZ = Math.abs(car.position.z - obs.position.z);
+                const distX = Math.abs(car.position.x - obs.position.x);
 
-                if (Math.abs(carZ - obsZ) < 2.2 && Math.abs(carX - obsX) < 1.6) {
-                    if (!isInvincible) {
-                        const boom = document.getElementById('crashSound');
-                        boom.currentTime = 0; boom.play();
+                if (distZ < 2.5 && distX < 1.8) {
+                    const boom = document.getElementById('crashSound');
+                    boom.currentTime = 0; boom.play();
 
-                        if (settings.mode === 'hard') {
+                    if (settings.mode === 'hard') {
+                        gameStarted = false;
+                        setTimeout(() => { alert("💀 任務失敗！最終得分: " + score); location.reload(); }, 100);
+                    } else {
+                        hp -= 25;
+                        document.getElementById('hp-bar').style.width = hp + "%";
+                        scene.remove(obs); obstacles.splice(i, 1);
+                        if (hp <= 0) {
                             gameStarted = false;
-                            setTimeout(() => { alert("🚀 任務失敗！最終得分: " + score); location.reload(); }, 100);
-                        } else {
-                            hp -= 25;
-                            document.getElementById('hp-bar').style.width = hp + "%";
-                            scene.remove(obs); obstacles.splice(i, 1);
-                            if (hp <= 0) {
-                                gameStarted = false;
-                                setTimeout(() => { alert("💔 引擎損毀！最終得分: " + score); location.reload(); }, 100);
-                            }
+                            setTimeout(() => { alert("💔 引擎損毀！最終得分: " + score); location.reload(); }, 100);
                         }
                     }
                 }
