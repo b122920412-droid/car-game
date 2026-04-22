@@ -7,7 +7,7 @@
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center; }
-        .title { color: white; font-size: 42px; margin-bottom: 20px; font-weight: 900; letter-spacing: 5px; text-shadow: 0 0 15px #007bff; }
+        .title { color: white; font-size: 42px; margin-bottom: 25px; font-weight: 900; letter-spacing: 5px; text-shadow: 0 0 15px #007bff; }
         .setting-card { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 20px; width: 340px; margin-bottom: 15px; text-align: left; border: 1px solid rgba(255,255,255,0.1); }
         .setting-header { color: #00d2ff; font-size: 14px; margin-bottom: 10px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
         .option-group { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -26,8 +26,6 @@
 
     <div id="start-screen">
         <div class="title">賽車小遊戲</div>
-        <div id="loading-text" style="color: #ffcc00; margin-bottom: 10px;">音效資源載入中...</div>
-        
         <div class="setting-card">
             <div class="setting-header">🕹️ 操作模式</div>
             <div class="option-group">
@@ -66,26 +64,27 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        // --- 音效處理核心 (Web Audio API) ---
-        let audioCtx, explosionBuffer, bgmAudio;
+        // --- 音效處理 (更換為穩定來源) ---
+        let audioCtx, explosionBuffer, bgmBuffer, bgmSource;
         const explosionUrl = 'https://actions.google.com/sounds/v1/science_fiction/low_frequence_explosion.ogg';
-        const bgmUrl = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3';
+        const bgmUrl = 'https://actions.google.com/sounds/v1/ambiences/industrial_hum_large_chamber.ogg'; // 換一個穩定的背景音
 
-        // 預載爆炸音效
-        async function loadExplosion() {
+        async function loadSounds() {
             try {
-                const response = await fetch(explosionUrl);
-                const arrayBuffer = await response.arrayBuffer();
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                explosionBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-                document.getElementById('loading-text').innerText = "音效資源已就緒 ✅";
-                document.getElementById('loading-text').style.color = "#00ffcc";
+                
+                // 載入爆炸聲
+                const expRes = await fetch(explosionUrl);
+                explosionBuffer = await audioCtx.decodeAudioData(await expRes.arrayBuffer());
+                
+                // 載入 BGM
+                const bgmRes = await fetch(bgmUrl);
+                bgmBuffer = await audioCtx.decodeAudioData(await bgmRes.arrayBuffer());
             } catch (e) {
                 console.error("音效載入失敗", e);
-                document.getElementById('loading-text').innerText = "部分音效載入失敗，但仍可開始遊戲";
             }
         }
-        loadExplosion();
+        loadSounds();
 
         function playExplosion() {
             if (audioCtx && explosionBuffer) {
@@ -96,11 +95,24 @@
             }
         }
 
+        function playBGM() {
+            if (audioCtx && bgmBuffer) {
+                bgmSource = audioCtx.createBufferSource();
+                bgmSource.buffer = bgmBuffer;
+                bgmSource.loop = true;
+                const gainNode = audioCtx.createGain();
+                gainNode.gain.value = 0.3; // 控制音量
+                bgmSource.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                bgmSource.start(0);
+            }
+        }
+
         // --- 遊戲邏輯 ---
         let scene, camera, renderer, car, gameStarted = false, score = 0;
         let obstacles = [], decor = [], roadLines = [];
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
-        let currentSpeed = 1.6, hp = 100, isInvincible = false;
+        let currentSpeed = 1.6, hp = 100;
         let settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
 
         function setSetting(type, val) {
@@ -110,16 +122,10 @@
         }
 
         function requestAndStart() {
-            // 💡 點擊瞬間啟動 AudioContext (解鎖聲音)
             if (audioCtx && audioCtx.state === 'suspended') {
                 audioCtx.resume();
             }
-
-            // 啟動 BGM
-            bgmAudio = new Audio(bgmUrl);
-            bgmAudio.loop = true;
-            bgmAudio.volume = 0.2;
-            bgmAudio.play().catch(e => console.log("BGM 播放失敗", e));
+            playBGM(); // 💡 啟動背景音樂
 
             if (settings.ctrl === 'tilt' && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 DeviceOrientationEvent.requestPermission().then(s => { start(); }).catch(() => start());
@@ -253,18 +259,14 @@
             obstacles.forEach((obs, i) => {
                 obs.position.z += currentSpeed;
                 if (Math.abs(car.position.z - obs.position.z) < 2.5 && Math.abs(car.position.x - obs.position.x) < 1.6) {
-                    if (!isInvincible) {
-                        // 💡 呼叫強大的爆炸音效
-                        playExplosion();
-
-                        if (settings.mode === 'hard') {
-                            gameStarted = false;
-                            setTimeout(() => { alert("💀 任務失敗！得分: " + score); location.reload(); }, 200);
-                        } else {
-                            hp -= 25; document.getElementById('hp-bar').style.width = hp + "%";
-                            scene.remove(obs); obstacles.splice(i, 1);
-                            if (hp <= 0) { gameStarted = false; setTimeout(() => { alert("💔 引擎損毀！最終得分: " + score); location.reload(); }, 200); }
-                        }
+                    playExplosion(); // 💡 觸發爆炸聲
+                    if (settings.mode === 'hard') {
+                        gameStarted = false;
+                        setTimeout(() => { alert("💀 撞毀了！得分: " + score); location.reload(); }, 200);
+                    } else {
+                        hp -= 25; document.getElementById('hp-bar').style.width = hp + "%";
+                        scene.remove(obs); obstacles.splice(i, 1);
+                        if (hp <= 0) { gameStarted = false; location.reload(); }
                     }
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
