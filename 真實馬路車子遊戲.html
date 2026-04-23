@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>賽車小遊戲-亡命飆速</title>
+    <title>亡命飆速 - 3D 全實裝版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center; color: white; }
@@ -55,7 +55,7 @@
             </div>
         </div>
 
-        <button id="start-btn" class="start-btn" disabled onclick="requestAndStart()">模型載入中...</button>
+        <button id="start-btn" class="start-btn" disabled onclick="requestAndStart()">資源載入中...</button>
         <div class="hint">⌨️ 電腦：左右鍵 | 📱 手機：點擊兩側</div>
     </div>
 
@@ -74,6 +74,7 @@
     <script>
         let scene, camera, renderer, car, grassPlane, gameStarted = false, score = 0;
         let obstacles = [], decor = [], roadLines = [];
+        let obsModel1, obsModel2, obsModel3; // 新增路障模型變數
         let policeLightR, policeLightB; 
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let currentSpeed = 1.6, hp = 100;
@@ -170,33 +171,51 @@
                 const line2 = line.clone(); line2.position.x = 1.8; scene.add(line2); roadLines.push(line2);
             }
 
-            // --- 載入 3D 警車模型 ---
+            // --- 載入 3D 模型 ---
+            const loader = new THREE.GLTFLoader();
+            let loadedCount = 0;
+            const totalModels = 4;
+
+            function checkLoaded() {
+                loadedCount++;
+                if (loadedCount >= totalModels) {
+                    const sBtn = document.getElementById('start-btn');
+                    sBtn.disabled = false;
+                    sBtn.innerText = "進入賽道";
+                }
+            }
+
+            // 1. 主角車
             car = new THREE.Group();
             scene.add(car);
-
-            const loader = new THREE.GLTFLoader();
             loader.load('car.glb', function (gltf) {
                 const model = gltf.scene;
-                
-                // 調整倍率 
-                model.scale.set(8.0, 8.0, 8.0); 
-                
-                // 旋轉方向讓車頭朝前
+                model.scale.set(8, 8, 8); 
                 model.rotation.y = Math.PI; 
-                
-                // 貼齊路面
-                model.position.y = 0; 
-
                 car.add(model);
-                
-                // 載入完成，啟動按鈕
-                const sBtn = document.getElementById('start-btn');
-                sBtn.disabled = false;
-                sBtn.innerText = "進入賽道";
-            }, undefined, function (error) {
-                console.error('模型載入失敗！請檢查 car.glb 是否與此 html 放在同一個資料夾。', error);
-                const sBtn = document.getElementById('start-btn');
-                sBtn.innerText = "載入失敗 (檢查檔名)";
+                checkLoaded();
+            });
+
+            // 2. 障礙物 1 (barriers.glb)
+            loader.load('barriers.glb', function (gltf) {
+                obsModel1 = gltf.scene;
+                obsModel1.scale.set(8, 8, 8);
+                checkLoaded();
+            });
+
+            // 3. 障礙物 2 (Traffic Cone.glb)
+            loader.load('Traffic Cone.glb', function (gltf) {
+                obsModel2 = gltf.scene;
+                obsModel2.scale.set(10, 10, 10);
+                checkLoaded();
+            });
+
+            // 4. 障礙物 3 (police car.glb - NPC)
+            loader.load('police car.glb', function (gltf) {
+                obsModel3 = gltf.scene;
+                obsModel3.scale.set(10, 10, 10);
+                obsModel3.rotation.y = Math.PI; // 讓車頭朝前
+                checkLoaded();
             });
 
             car.position.z = 15;
@@ -216,30 +235,26 @@
             if (!gameStarted) return;
             const type = Math.random();
             let obs = new THREE.Group();
+            let modelSample = null;
             
             if (type < 0.33) { 
-                const plate = new THREE.Mesh(new THREE.BoxGeometry(4, 0.15, 1.5), new THREE.MeshPhongMaterial({ color: 0x222222 }));
-                for(let i=0; i<6; i++) {
-                    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.25, 1.2, 8), new THREE.MeshPhongMaterial({ color: 0x888888 }));
-                    spike.position.set(-1.5 + i*0.6, 0.6, 0); obs.add(spike);
-                }
-                obs.add(plate);
+                modelSample = obsModel1; // 路障
             } else if (type < 0.66) { 
-                const bar = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.6, 0.3), new THREE.MeshPhongMaterial({ color: 0xffffff }));
-                const stripe = new THREE.Mesh(new THREE.BoxGeometry(3.52, 0.25, 0.32), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-                const legL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 2.0, 0.3), new THREE.MeshPhongMaterial({ color: 0x333333 }));
-                legL.position.set(-1.4, -0.4, 0);
-                const legR = legL.clone(); legR.position.x = 1.4;
-                obs.add(bar, stripe, legL, legR);
-                obs.position.y = 1.3;
+                modelSample = obsModel2; // 交通錐
             } else { 
-                const body = new THREE.Mesh(new THREE.BoxGeometry(2, 0.8, 4.2), new THREE.MeshPhongMaterial({ color: 0xffffff }));
-                const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.6, 2), new THREE.MeshPhongMaterial({color: 0x111111}));
-                cabin.position.set(0, 0.7, -0.3); obs.add(body, cabin);
+                modelSample = obsModel3; // NPC 警車
                 obs.userData = { isCar: true, speed: currentSpeed * 0.4 };
-                obs.position.y = 0.4;
             }
-            obs.position.set(lanes[Math.floor(Math.random() * 3)], obs.position.y, -120);
+
+            if (modelSample) {
+                obs.add(modelSample.clone());
+            } else {
+                // 如果模型沒載到，用方塊墊底避免出錯
+                const placeholder = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 2), new THREE.MeshPhongMaterial({ color: 0xff0000 }));
+                obs.add(placeholder);
+            }
+
+            obs.position.set(lanes[Math.floor(Math.random() * 3)], 0.5, -120);
             scene.add(obs); obstacles.push(obs);
         }
 
@@ -302,7 +317,6 @@
             renderer.render(scene, camera);
         }
 
-        // 頁面加載後先初始化 3D
         window.onload = init3D;
     </script>
 </body>
