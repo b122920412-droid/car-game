@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 最終修復</title>
+    <title>亡命飆速 - 多車路障整合版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -28,6 +28,7 @@
     <div id="start-screen">
         <div class="title">亡命飆速</div>
         <div class="warning-text">⚠️ 警告：警方路障已佈署！逃離追捕！</div>
+        
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -35,6 +36,7 @@
                 <button id="ctrl-tilt" class="opt-btn" onclick="setSetting('ctrl', 'tilt')">體感陀螺儀</button>
             </div>
         </div>
+
         <div class="setting-group">
             <div class="setting-label">🛡️ 挑戰難度</div>
             <div class="option-group">
@@ -43,6 +45,7 @@
                 <button id="diff-3" class="opt-btn" onclick="setSetting('diff', 3)">困難</button>
             </div>
         </div>
+
         <div class="setting-group">
             <div class="setting-label">🔥 遊戲模式</div>
             <div class="option-group">
@@ -50,6 +53,7 @@
                 <button id="mode-easy" class="opt-btn" onclick="setSetting('mode', 'easy')">❤️ 護甲 (有HP)</button>
             </div>
         </div>
+
         <button id="start-btn" class="start-btn" disabled onclick="requestAndStart()">資源載入中...</button>
     </div>
 
@@ -68,12 +72,15 @@
     <script>
         let scene, camera, renderer, car, grassPlane, gameStarted = false, score = 0;
         let obstacles = [], decor = [], roadLines = [];
-        let obsModel1, obsModel2, obsModel3; 
+        let carModels = []; // 💡 用來存放隨機路障車輛的陣列
         let policeLightR, policeLightB; 
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let currentSpeed = 1.6, hp = 100;
         let settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
         let loadedCount = 0;
+
+        // 💡 旋轉偏移設定 (已根據你之前的回饋設定為 Math.PI 轉正)
+        const CAR_ROT_OFFSET = Math.PI; 
 
         function setSetting(type, val) {
             settings[type] = val;
@@ -100,6 +107,24 @@
             setInterval(createDecor, 600);
         }
 
+        function updateSeasons() {
+            const seasonIndex = Math.floor(score / 150) % 4;
+            const skyColors = [0x87CEEB, 0xfff9c4, 0xffcc80, 0xd1d9e6];
+            const grassColors = [0x7cfc00, 0x228b22, 0xdaa520, 0xffffff];
+            if(scene) {
+                scene.background = new THREE.Color(skyColors[seasonIndex]);
+                scene.fog.color.setHex(skyColors[seasonIndex]);
+                if (grassPlane) grassPlane.material.color.setHex(grassColors[seasonIndex]);
+            }
+        }
+
+        function initControls() {
+            const moveLeft = () => { if (currentLaneIndex > 0) currentLaneIndex--; targetX = lanes[currentLaneIndex]; };
+            const moveRight = () => { if (currentLaneIndex < 2) currentLaneIndex++; targetX = lanes[currentLaneIndex]; };
+            window.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') moveLeft(); if (e.key === 'ArrowRight') moveRight(); });
+            window.addEventListener('touchstart', (e) => { if (!gameStarted) return; if (e.touches[0].clientX < window.innerWidth / 2) moveLeft(); else moveRight(); });
+        }
+
         function init3D() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87CEEB);
@@ -107,6 +132,7 @@
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.outputEncoding = THREE.sRGBEncoding;
             document.body.appendChild(renderer.domElement);
 
             scene.add(new THREE.AmbientLight(0xffffff, 1.0));
@@ -130,19 +156,29 @@
             const loader = new THREE.GLTFLoader();
             car = new THREE.Group(); scene.add(car);
 
+            // 1. 載入主角車
             loader.load('car.glb', (gltf) => { 
                 gltf.scene.scale.set(6, 6, 6); 
-                // 💡 預設旋轉設為 0
-                gltf.scene.rotation.y = 0; 
+                gltf.scene.rotation.y = CAR_ROT_OFFSET; 
                 car.add(gltf.scene); checkLoaded();
             });
 
-            // 💡 你可以把這裡的 'barriers.glb' 換成你想要的新檔名
-            loader.load('barriers.glb', (gltf) => { obsModel1 = gltf.scene; obsModel1.scale.set(0.6, 0.6, 0.6); checkLoaded(); });
-            loader.load('Traffic Cone.glb', (gltf) => { obsModel2 = gltf.scene; obsModel2.scale.set(1.5, 1.5, 1.5); checkLoaded(); });
+            // 2. 💡 載入多個路障車輛
+            const obstacleFiles = ['car1.glb', 'car2.glb', 'car3.glb']; // 請把這裡換成你下載的新檔名
+            obstacleFiles.forEach(file => {
+                loader.load(file, (gltf) => {
+                    let model = gltf.scene;
+                    model.scale.set(6, 6, 6);
+                    carModels.push(model);
+                    checkLoaded();
+                });
+            });
+
+            // 3. 警察車 (獨立載入，作為固定攔截物)
             loader.load('police car.glb', (gltf) => { 
-                obsModel3 = gltf.scene; obsModel3.scale.set(6, 6, 6); 
-                obsModel3.rotation.y = 0; // 💡 警察車橫向
+                obsModel3 = gltf.scene; 
+                obsModel3.scale.set(6, 6, 6); 
+                obsModel3.rotation.y = 0; // 橫放
                 checkLoaded(); 
             });
 
@@ -155,15 +191,30 @@
         }
 
         function checkLoaded() {
-            loadedCount++; if(loadedCount >= 4) { document.getElementById('start-btn').disabled = false; document.getElementById('start-btn').innerText = "進入賽道"; }
+            loadedCount++; 
+            // 💡 主角車(1) + 路障車(3) + 警察車(1) = 5
+            if(loadedCount >= 5) { 
+                document.getElementById('start-btn').disabled = false; 
+                document.getElementById('start-btn').innerText = "進入賽道"; 
+            }
         }
 
         function createPoliceObstacle() {
             if (!gameStarted) return;
-            const type = Math.random();
             let obs = new THREE.Group();
-            let model = (type < 0.33) ? obsModel1 : (type < 0.66 ? obsModel2 : obsModel3);
-            if (model) obs.add(model.clone());
+            let model;
+
+            // 💡 50% 機率出現隨機新車，50% 出現橫向警車
+            if (Math.random() < 0.5 && carModels.length > 0) {
+                model = carModels[Math.floor(Math.random() * carModels.length)];
+                let clone = model.clone();
+                clone.rotation.y = 0; // 車頭對著玩家
+                obs.add(clone);
+            } else if (obsModel3) {
+                obs.add(obsModel3.clone());
+                obs.userData = { isPolice: true };
+            }
+            
             obs.position.set(lanes[Math.floor(Math.random() * 3)], 0, -120);
             scene.add(obs); obstacles.push(obs);
         }
@@ -183,10 +234,7 @@
             if (!gameStarted) return;
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
-            
-            // 💡 關鍵修正：將車子頭轉向前方 (Math.PI 代表 180度)
-            // 如果還是反的，請將下面的 Math.PI 改成 0
-            car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
+            car.rotation.y = (targetX - car.position.x) * 0.1 + CAR_ROT_OFFSET; 
 
             let flash = Math.floor(Date.now() / 150) % 2;
             policeLightR.intensity = (flash === 0) ? 25 : 0;
@@ -201,30 +249,20 @@
                 obs.position.z += currentSpeed;
                 const distZ = Math.abs(car.position.z - obs.position.z);
                 const distX = Math.abs(car.position.x - obs.position.x);
-                if (distZ < 1.8 && distX < 1.0) {
+                
+                if (distZ < 2.0 && distX < 1.0) {
                     document.getElementById('crashSound').play();
-                    gameStarted = false; setTimeout(() => { alert("🚨 任務失敗！得分: " + score); location.reload(); }, 100);
+                    if (settings.mode === 'hard') {
+                        gameStarted = false; setTimeout(() => { alert("🚨 任務失敗！得分: " + score); location.reload(); }, 100);
+                    } else {
+                        hp -= 25; document.getElementById('hp-bar').style.width = hp + "%";
+                        scene.remove(obs); obstacles.splice(i, 1);
+                        if (hp <= 0) { gameStarted = false; setTimeout(() => { alert("💥 被逮捕！得分: " + score); location.reload(); }, 100); }
+                    }
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
             renderer.render(scene, camera);
-        }
-
-        function updateSeasons() {
-            const seasonIndex = Math.floor(score / 150) % 4;
-            const skyColors = [0x87CEEB, 0xfff9c4, 0xffcc80, 0xd1d9e6];
-            const grassColors = [0x7cfc00, 0x228b22, 0xdaa520, 0xffffff];
-            if(scene) {
-                scene.background = new THREE.Color(skyColors[seasonIndex]);
-                scene.fog.color.setHex(skyColors[seasonIndex]);
-                if (grassPlane) grassPlane.material.color.setHex(grassColors[seasonIndex]);
-            }
-        }
-        function initControls() {
-            const moveLeft = () => { if (currentLaneIndex > 0) currentLaneIndex--; targetX = lanes[currentLaneIndex]; };
-            const moveRight = () => { if (currentLaneIndex < 2) currentLaneIndex++; targetX = lanes[currentLaneIndex]; };
-            window.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') moveLeft(); if (e.key === 'ArrowRight') moveRight(); });
-            window.addEventListener('touchstart', (e) => { if (!gameStarted) return; if (e.touches[0].clientX < window.innerWidth / 2) moveLeft(); else moveRight(); });
         }
         window.onload = init3D;
     </script>
