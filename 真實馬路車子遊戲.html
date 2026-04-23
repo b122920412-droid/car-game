@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 最終修復整合版</title>
+    <title>亡命飆速 - 最終修復版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -27,7 +27,8 @@
 <body>
     <div id="start-screen">
         <div class="title">亡命飆速</div>
-        <div class="warning-text">⚠️ 警告：警方路障已佈署！逃離追捕！</div>
+        <div class="warning-text">⚠️ 警報：攔截系統已啟動！逃離封鎖！</div>
+        
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -50,6 +51,7 @@
                 <button id="mode-easy" class="opt-btn" onclick="setSetting('mode', 'easy')">❤️ 護甲 (有HP)</button>
             </div>
         </div>
+
         <button id="start-btn" class="start-btn" disabled onclick="requestAndStart()">資源載入中...</button>
     </div>
 
@@ -68,12 +70,13 @@
     <script>
         let scene, camera, renderer, car, grassPlane, gameStarted = false, score = 0;
         let obstacles = [], decor = [], roadLines = [];
-        let obsCarModels = {}; 
+        let obsCarModels = {}; // 存放載入的模型物件
         let policeLightR, policeLightB; 
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let currentSpeed = 1.6, hp = 100;
         let settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
         let loadedCount = 0;
+        const totalToLoad = 7; // car.glb + CAR1~CAR6
 
         function setSetting(type, val) {
             settings[type] = val;
@@ -87,7 +90,8 @@
             document.getElementById('start-screen').style.display = 'none';
             if (settings.mode === 'easy') document.getElementById('hp-container').style.display = 'block';
             currentSpeed = 1.2 + (settings.diff * 0.5); 
-            initControls(); animate();
+            initControls(); 
+            animate();
             setInterval(() => {
                 if(gameStarted) {
                     score++;
@@ -96,7 +100,7 @@
                     updateSeasons(); 
                 }
             }, 100);
-            setInterval(createObstacle, 1000 - (settings.diff * 120));
+            setInterval(createObstacle, 800 - (settings.diff * 100)); // 縮短間距
             setInterval(createDecor, 600);
         }
 
@@ -130,15 +134,16 @@
             const loader = new THREE.GLTFLoader();
             car = new THREE.Group(); scene.add(car);
 
-            // 1. 載入主角車
+            // 1. 載入主角車 - 旋轉 180 度修正倒車問題
             loader.load('car.glb', (gltf) => { 
-                gltf.scene.scale.set(6, 6, 6); 
-                gltf.scene.rotation.y = 0; // 車頭正向
-                car.add(gltf.scene); 
+                let model = gltf.scene;
+                model.scale.set(6, 6, 6); 
+                model.rotation.y = Math.PI; // 強制轉向
+                car.add(model); 
                 checkLoaded();
-            }, undefined, (err) => console.error("主角車載入失敗", err));
+            });
 
-            // 2. 載入路障車輛 (CAR1~CAR6) - 使用全大寫檔名
+            // 2. 載入路障 CAR1 ~ CAR6
             const carFiles = ['CAR1.glb', 'CAR2.glb', 'CAR3.glb', 'CAR4.glb', 'CAR5.glb', 'CAR6.glb'];
             carFiles.forEach(file => {
                 loader.load(file, (gltf) => {
@@ -146,11 +151,7 @@
                     model.scale.set(6, 6, 6);
                     obsCarModels[file] = model; 
                     checkLoaded();
-                }, undefined, (err) => {
-                    console.error(file + " 載入失敗", err);
-                    // 即使單個模型失敗也跳過，避免卡住
-                    checkLoaded(); 
-                });
+                }, undefined, (err) => { console.error(file + " 載入失敗", err); checkLoaded(); });
             });
 
             policeLightR = new THREE.PointLight(0xff0000, 0, 50);
@@ -163,9 +164,7 @@
 
         function checkLoaded() {
             loadedCount++; 
-            // 💡 改為判定載入次數，如果達到 7 次（主角+6路人）就啟動
-            // 如果你資料夾裡檔案大小寫不同，記得確認
-            if(loadedCount >= 7) { 
+            if(loadedCount >= totalToLoad) { 
                 document.getElementById('start-btn').disabled = false; 
                 document.getElementById('start-btn').innerText = "進入賽道"; 
             }
@@ -179,15 +178,15 @@
             let randomKey = modelKeys[Math.floor(Math.random() * modelKeys.length)];
             let carClone = obsCarModels[randomKey].clone();
             
-            // 💡 方向邏輯：CAR6 警車橫放，其餘 1-5 號正向前進
+            // 💡 旋轉：CAR6(警車)橫放，其餘(1-5)正常正放開車
             if (randomKey === 'CAR6.glb') {
-                carClone.rotation.y = Math.PI / 2; // 橫放攔截
+                carClone.rotation.y = Math.PI / 2; 
             } else {
-                carClone.rotation.y = 0; // 正向行駛
+                carClone.rotation.y = 0; 
             }
             
             obs.add(carClone);
-            obs.position.set(lanes[Math.floor(Math.random() * 3)], 0, -120);
+            obs.position.set(lanes[Math.floor(Math.random() * 3)], 0, -150); // 拉遠生成距離
             scene.add(obs); obstacles.push(obs);
         }
 
@@ -206,7 +205,9 @@
             if (!gameStarted) return;
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
-            car.rotation.y = (targetX - car.position.x) * 0.1; 
+            
+            // 💡 主角車鎖定旋轉方向，避免倒著開
+            car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
 
             let flash = Math.floor(Date.now() / 150) % 2;
             policeLightR.intensity = (flash === 0) ? 25 : 0;
@@ -222,6 +223,7 @@
                 const distZ = Math.abs(car.position.z - obs.position.z);
                 const distX = Math.abs(car.position.x - obs.position.x);
                 
+                // 碰撞判定精準化
                 if (distZ < 2.0 && distX < 1.2) {
                     document.getElementById('crashSound').play();
                     gameStarted = false; setTimeout(() => { alert("💥 任務失敗！得分: " + score); location.reload(); }, 100);
