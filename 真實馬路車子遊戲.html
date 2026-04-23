@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 終極穩定版</title>
+    <title>亡命飆速 - 檔名修正版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -27,7 +27,7 @@
 <body>
     <div id="start-screen">
         <div class="title">亡命飆速</div>
-        <div class="warning-text">🚨 逃離警方的重重包圍！</div>
+        <div class="warning-text">🚨 警告：前方已被封鎖！衝過去！</div>
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -76,9 +76,6 @@
         let loadedCount = 0;
         const totalToLoad = 7; 
 
-        // 💡 本次測試：將偏移設為 0。如果還是反的，我們下次改用小數點精確調整。
-        const CAR_ROT_OFFSET = 0; 
-
         function setSetting(type, val) {
             settings[type] = val;
             document.querySelectorAll(`[id^="${type}-"]`).forEach(btn => btn.classList.remove('active'));
@@ -101,8 +98,7 @@
                     updateSeasons(); 
                 }
             }, 100);
-            // 💡 縮短障礙物間距，確保一定看得到
-            setInterval(createObstacle, 1200 - (settings.diff * 100)); 
+            setInterval(createObstacle, 1000); 
             setInterval(createDecor, 600);
         }
 
@@ -119,11 +115,11 @@
             const sun = new THREE.DirectionalLight(0xffffff, 1.2);
             sun.position.set(10, 50, 10); scene.add(sun);
 
-            const road = new THREE.Mesh(new THREE.PlaneGeometry(22, 2000), new THREE.MeshPhongMaterial({ color: 0x333333 }));
-            road.rotation.x = -Math.PI / 2; scene.add(road);
-
             const grass = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshPhongMaterial({ color: 0x7cfc00 }));
             grass.rotation.x = -Math.PI / 2; grass.position.y = -0.1; scene.add(grass);
+
+            const road = new THREE.Mesh(new THREE.PlaneGeometry(22, 2000), new THREE.MeshPhongMaterial({ color: 0x333333 }));
+            road.rotation.x = -Math.PI / 2; scene.add(road);
 
             for (let i = 0; i < 60; i++) {
                 const line = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 7), new THREE.MeshBasicMaterial({ color: 0xcccccc }));
@@ -137,18 +133,18 @@
             scene.add(policeLightR, policeLightB);
 
             const loader = new THREE.GLTFLoader();
-            car = new THREE.Group(); 
-            scene.add(car);
+            car = new THREE.Group(); scene.add(car);
 
             loader.load('car.glb', (gltf) => { 
                 let model = gltf.scene;
                 model.scale.set(6, 6, 6); 
-                model.rotation.y = CAR_ROT_OFFSET; 
+                model.rotation.y = Math.PI; // 💡 轉 180 度修正倒車
                 car.add(model); 
                 checkLoaded();
             });
 
-            const carFiles = ['CAR1.glb', 'CAR2.glb', 'CAR3.glb', 'CAR4.glb', 'CAR5.glb', 'CAR6.glb'];
+            // 💡 修正處：將檔名改為全小寫以符合你的 GitHub 檔案
+            const carFiles = ['car1.glb', 'car2.glb', 'car3.glb', 'car4.glb', 'car5.glb', 'car6.glb'];
             carFiles.forEach(file => {
                 loader.load(file, (gltf) => {
                     let model = gltf.scene;
@@ -177,16 +173,14 @@
             let randomKey = keys[Math.floor(Math.random() * keys.length)];
             let carClone = obsCarModels[randomKey].clone();
             
-            if (randomKey === 'CAR6.glb') {
+            if (randomKey === 'car6.glb') {
                 carClone.rotation.y = Math.PI / 2; // 警車橫放
             } else {
-                carClone.rotation.y = Math.PI; // 路人車頭對玩家
+                carClone.rotation.y = 0; // 其他路人車正放
             }
             
-            // 💡 強制修正生成座標
-            carClone.position.set(lanes[Math.floor(Math.random() * 3)], 0, -100);
-            scene.add(carClone); 
-            obstacles.push(carClone);
+            carClone.position.set(lanes[Math.floor(Math.random() * 3)], 0, -120);
+            scene.add(carClone); obstacles.push(carClone);
         }
 
         function createDecor() {
@@ -204,7 +198,7 @@
             if (!gameStarted) return;
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
-            car.rotation.y = (targetX - car.position.x) * 0.1 + CAR_ROT_OFFSET; 
+            car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; // 💡 同步 180 度修正
 
             let flash = Math.floor(Date.now() / 150) % 2;
             policeLightR.intensity = (flash === 0) ? 25 : 0;
@@ -221,7 +215,7 @@
                 const distX = Math.abs(car.position.x - obs.position.x);
                 if (distZ < 2.0 && distX < 1.2) {
                     document.getElementById('crashSound').play();
-                    gameStarted = false; setTimeout(() => { alert("💥 任務失敗！得分: " + score); location.reload(); }, 100);
+                    gameStarted = false; setTimeout(() => { alert("💥 被逮捕！得分: " + score); location.reload(); }, 100);
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
