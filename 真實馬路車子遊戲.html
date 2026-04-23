@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 終極方向修正版</title>
+    <title>亡命飆速 - 最終比例方向版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -25,7 +25,7 @@
 <body>
     <div id="start-screen">
         <div class="title">亡命飆速</div>
-        <div class="warning-text">🚨 方向系統已重校！衝出重圍！</div>
+        <div class="warning-text">🚨 警告：前方車流異常！全速衝刺！</div>
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -63,12 +63,12 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
     <script>
-        let scene, camera, renderer, car, grassPlane, gameStarted = false, score = 0;
+        let scene, camera, renderer, car, gameStarted = false, score = 0;
         let obstacles = [], decor = [], roadLines = [];
         let obsCarModels = {}; 
         let policeLightR, policeLightB; 
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
-        let currentSpeed = 1.6, hp = 100;
+        let currentSpeed = 1.6;
         let settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
         let loadedCount = 0;
         const totalToLoad = 7; 
@@ -93,7 +93,7 @@
                     document.getElementById('speedo').innerText = Math.floor(currentSpeed * 50) + " KM/H";
                 }
             }, 100);
-            setInterval(createObstacle, 1000); 
+            setInterval(createObstacle, 1100); 
             setInterval(createDecor, 600);
         }
 
@@ -128,18 +128,18 @@
             scene.add(policeLightR, policeLightB);
 
             const loader = new THREE.GLTFLoader();
-            car = new THREE.Group(); 
-            scene.add(car);
+            car = new THREE.Group(); scene.add(car);
 
+            // 1. 主角車：比例設為 4.5，旋轉設為 0
             loader.load('car.glb', (gltf) => { 
                 let model = gltf.scene;
-                model.scale.set(5, 5, 5); 
-                // 💡 主角車：強制旋轉 180 度 (Math.PI) 解決影片中倒著衝的問題
-                model.rotation.y = Math.PI; 
+                model.scale.set(4.5, 4.5, 4.5); 
+                model.rotation.y = 0; 
                 car.add(model); 
                 checkLoaded();
             });
 
+            // 2. 障礙物：比例設為 3.5 (比主角小一點，比較真實)
             const carFiles = ['car1.glb', 'car2.glb', 'car3.glb', 'car4.glb', 'car5.glb', 'car6.glb'];
             carFiles.forEach(file => {
                 loader.load(file, (gltf) => {
@@ -169,18 +169,16 @@
             let randomKey = keys[Math.floor(Math.random() * keys.length)];
             let carClone = obsCarModels[randomKey].clone();
             
-            // 💡 路障旋轉重校：
+            // 💡 旋轉重校：
             if (randomKey === 'car6.glb') {
-                carClone.rotation.y = 0; // 警車橫向攔截 (原始角度就是橫的)
+                carClone.rotation.y = 0; // 警車維持橫放攔截
             } else {
-                // 💡 1-5 號車：旋轉 -90 度 (-Math.PI / 2) 
-                // 將原本橫著跑的模型轉正，使其跟玩家同向直行
+                // 💡 1-5號車：改為 -Math.PI / 2，讓橫向的模型轉成直行方向
                 carClone.rotation.y = -Math.PI / 2; 
             }
             
-            carClone.position.set(lanes[Math.floor(Math.random() * 3)], 0, -120);
-            scene.add(carClone); 
-            obstacles.push(carClone);
+            carClone.position.set(lanes[Math.floor(Math.random() * 3)], 0, -150);
+            scene.add(carClone); obstacles.push(carClone);
         }
 
         function createDecor() {
@@ -190,7 +188,7 @@
             const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.5), new THREE.MeshPhongMaterial({color: 0x8B4513}));
             const foliage = new THREE.Mesh(new THREE.ConeGeometry(1.5, 4, 8), new THREE.MeshPhongMaterial({color: 0x228b22}));
             foliage.position.y = 2.5; tree.add(trunk, foliage);
-            tree.position.set(side * 14, 1, -150);
+            tree.position.set(side * 14, 1, -180);
             scene.add(tree); decor.push(tree);
         }
 
@@ -199,14 +197,14 @@
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
             
-            // 💡 主角方向同步：Math.PI
-            car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
+            // 💡 主角車：移除之前的 + Math.PI，回歸原始方向
+            car.rotation.y = (targetX - car.position.x) * 0.1 + 0; 
 
             let flash = Math.floor(Date.now() / 150) % 2;
             policeLightR.intensity = (flash === 0) ? 30 : 0;
             policeLightB.intensity = (flash === 1) ? 30 : 0;
-            policeLightR.position.set(car.position.x - 2.5, 5, car.position.z);
-            policeLightB.position.set(car.position.x + 2.5, 5, car.position.z);
+            policeLightR.position.set(car.position.x - 2, 5, car.position.z);
+            policeLightB.position.set(car.position.x + 2, 5, car.position.z);
 
             roadLines.forEach(l => { l.position.z += currentSpeed; if(l.position.z > 40) l.position.z = -200; });
             decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); }});
@@ -215,9 +213,10 @@
                 obs.position.z += currentSpeed;
                 const distZ = Math.abs(car.position.z - obs.position.z);
                 const distX = Math.abs(car.position.x - obs.position.x);
-                if (distZ < 1.5 && distX < 1.0) {
+                // 針對縮小的比例進行更嚴格的碰撞判定
+                if (distZ < 1.4 && distX < 1.0) {
                     document.getElementById('crashSound').play();
-                    gameStarted = false; setTimeout(() => { alert("🚨 逮捕歸案！得分: " + score); location.reload(); }, 100);
+                    gameStarted = false; setTimeout(() => { alert("💥 被逮捕！得分: " + score); location.reload(); }, 100);
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
