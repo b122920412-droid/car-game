@@ -76,6 +76,9 @@
         let loadedCount = 0;
         const totalToLoad = 7; 
 
+        // 💡 本次測試：將偏移設為 0。如果還是反的，我們下次改用小數點精確調整。
+        const CAR_ROT_OFFSET = 0; 
+
         function setSetting(type, val) {
             settings[type] = val;
             document.querySelectorAll(`[id^="${type}-"]`).forEach(btn => btn.classList.remove('active'));
@@ -95,9 +98,11 @@
                     score++;
                     document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0');
                     document.getElementById('speedo').innerText = Math.floor(currentSpeed * 50) + " KM/H";
+                    updateSeasons(); 
                 }
             }, 100);
-            setInterval(createObstacle, 1000); 
+            // 💡 縮短障礙物間距，確保一定看得到
+            setInterval(createObstacle, 1200 - (settings.diff * 100)); 
             setInterval(createDecor, 600);
         }
 
@@ -127,7 +132,6 @@
                 const line2 = line.clone(); line2.position.x = 1.8; scene.add(line2); roadLines.push(line2);
             }
 
-            // 💡 加入警察爆閃燈
             policeLightR = new THREE.PointLight(0xff0000, 0, 50);
             policeLightB = new THREE.PointLight(0x0000ff, 0, 50);
             scene.add(policeLightR, policeLightB);
@@ -139,8 +143,7 @@
             loader.load('car.glb', (gltf) => { 
                 let model = gltf.scene;
                 model.scale.set(6, 6, 6); 
-                // 💡 針對影片中的紅車屁股朝前，強制轉 180 度 (Math.PI)
-                model.rotation.y = Math.PI; 
+                model.rotation.y = CAR_ROT_OFFSET; 
                 car.add(model); 
                 checkLoaded();
             });
@@ -177,10 +180,11 @@
             if (randomKey === 'CAR6.glb') {
                 carClone.rotation.y = Math.PI / 2; // 警車橫放
             } else {
-                carClone.rotation.y = 0; // 其他車正放
+                carClone.rotation.y = Math.PI; // 路人車頭對玩家
             }
             
-            carClone.position.set(lanes[Math.floor(Math.random() * 3)], 0, -120);
+            // 💡 強制修正生成座標
+            carClone.position.set(lanes[Math.floor(Math.random() * 3)], 0, -100);
             scene.add(carClone); 
             obstacles.push(carClone);
         }
@@ -200,15 +204,11 @@
             if (!gameStarted) return;
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
-            
-            // 💡 固定主角方向，並加上與載入時一致的 Math.PI
-            car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
+            car.rotation.y = (targetX - car.position.x) * 0.1 + CAR_ROT_OFFSET; 
 
-            // 💡 警察爆閃燈邏輯
             let flash = Math.floor(Date.now() / 150) % 2;
             policeLightR.intensity = (flash === 0) ? 25 : 0;
             policeLightB.intensity = (flash === 1) ? 25 : 0;
-            // 讓燈光跟在主角後方
             policeLightR.position.set(car.position.x - 3, 4, 20);
             policeLightB.position.set(car.position.x + 3, 4, 20);
 
@@ -221,13 +221,23 @@
                 const distX = Math.abs(car.position.x - obs.position.x);
                 if (distZ < 2.0 && distX < 1.2) {
                     document.getElementById('crashSound').play();
-                    gameStarted = false; setTimeout(() => { alert("💥 被逮捕！得分: " + score); location.reload(); }, 100);
+                    gameStarted = false; setTimeout(() => { alert("💥 任務失敗！得分: " + score); location.reload(); }, 100);
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
             renderer.render(scene, camera);
         }
 
+        function updateSeasons() {
+            const seasonIndex = Math.floor(score / 150) % 4;
+            const skyColors = [0x87CEEB, 0xfff9c4, 0xffcc80, 0xd1d9e6];
+            const grassColors = [0x7cfc00, 0x228b22, 0xdaa520, 0xffffff];
+            if(scene) {
+                scene.background = new THREE.Color(skyColors[seasonIndex]);
+                scene.fog.color.setHex(skyColors[seasonIndex]);
+                if (grassPlane) grassPlane.material.color.setHex(grassColors[seasonIndex]);
+            }
+        }
         function initControls() {
             const moveLeft = () => { if (currentLaneIndex > 0) currentLaneIndex--; targetX = lanes[currentLaneIndex]; };
             const moveRight = () => { if (currentLaneIndex < 2) currentLaneIndex++; targetX = lanes[currentLaneIndex]; };
