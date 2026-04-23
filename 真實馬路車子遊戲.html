@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 3D 最終整合版</title>
+    <title>亡命飆速 - 3D 最終修正版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center; color: white; }
@@ -16,7 +16,7 @@
         .opt-btn { padding: 8px 18px; border: 1px solid #007bff; background: transparent; color: white; border-radius: 50px; cursor: pointer; transition: 0.3s; font-size: 13px; }
         .opt-btn.active { background: #007bff; box-shadow: 0 0 10px #007bff; border-color: #00ffcc; }
         .start-btn { padding: 15px 45px; font-size: 22px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; margin-top: 25px; box-shadow: 0 5px 20px rgba(0,123,255,0.6); }
-        .start-btn:disabled { background: #444; cursor: wait; box-shadow: none; }
+        .start-btn:disabled { background: #444; cursor: wait; }
         #ui-layer { position: absolute; top: 20px; left: 20px; right: 20px; pointer-events: none; z-index: 100; }
         #scoreDisplay { font-size: 32px; color: #0f0; font-family: monospace; font-weight: bold; float: right; text-shadow: 0 0 10px #0f0; }
         #hp-container { width: 180px; height: 12px; background: #333; border: 2px solid #fff; border-radius: 10px; overflow: hidden; display: none; margin-bottom: 5px; }
@@ -29,7 +29,6 @@
     <div id="start-screen">
         <div class="title">亡命飆速</div>
         <div class="warning-text">⚠️ 警告：警方路障已佈署！逃離追捕！</div>
-        
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -37,7 +36,6 @@
                 <button id="ctrl-tilt" class="opt-btn" onclick="setSetting('ctrl', 'tilt')">體感陀螺儀</button>
             </div>
         </div>
-
         <div class="setting-group">
             <div class="setting-label">🛡️ 挑戰難度</div>
             <div class="option-group">
@@ -46,7 +44,6 @@
                 <button id="diff-3" class="opt-btn" onclick="setSetting('diff', 3)">困難</button>
             </div>
         </div>
-
         <div class="setting-group">
             <div class="setting-label">🔥 遊戲模式</div>
             <div class="option-group">
@@ -54,7 +51,6 @@
                 <button id="mode-easy" class="opt-btn" onclick="setSetting('mode', 'easy')">❤️ 護甲 (有HP)</button>
             </div>
         </div>
-
         <button id="start-btn" class="start-btn" disabled onclick="requestAndStart()">資源載入中...</button>
         <div class="hint">⌨️ 電腦：左右鍵 | 📱 手機：點擊兩側</div>
     </div>
@@ -99,7 +95,6 @@
             if (settings.mode === 'easy') document.getElementById('hp-container').style.display = 'block';
             currentSpeed = 1.2 + (settings.diff * 0.5); 
             initControls(); animate();
-            
             setInterval(() => {
                 if(gameStarted) {
                     score++;
@@ -110,7 +105,7 @@
                 }
             }, 100);
             setInterval(createPoliceObstacle, 1000 - (settings.diff * 120));
-            setInterval(createDecor, 700);
+            setInterval(createDecor, 800);
         }
 
         function updateSeasons() {
@@ -132,19 +127,14 @@
             });
             window.addEventListener('touchstart', (e) => {
                 if (!gameStarted || settings.ctrl !== 'touch') return;
-                if (e.touches[0].clientX < window.innerWidth / 2) { 
-                    if (currentLaneIndex > 0) currentLaneIndex--; 
-                } else { 
-                    if (currentLaneIndex < 2) currentLaneIndex++; 
-                }
+                if (e.touches[0].clientX < window.innerWidth / 2) { if (currentLaneIndex > 0) currentLaneIndex--; }
+                else { if (currentLaneIndex < 2) currentLaneIndex++; }
                 targetX = lanes[currentLaneIndex];
             });
             if (settings.ctrl === 'tilt') {
                 window.addEventListener('deviceorientation', (e) => {
                     const tilt = e.gamma; 
-                    if (tilt < -10) currentLaneIndex = 0; 
-                    else if (tilt > 10) currentLaneIndex = 2; 
-                    else currentLaneIndex = 1;
+                    if (tilt < -10) currentLaneIndex = 0; else if (tilt > 10) currentLaneIndex = 2; else currentLaneIndex = 1;
                     targetX = lanes[currentLaneIndex];
                 });
             }
@@ -175,16 +165,17 @@
 
             const loader = new THREE.GLTFLoader();
 
-            // 1. 載入主角車
+            // 1. 載入主角車 (修正旋轉角度)
             car = new THREE.Group(); scene.add(car);
             loader.load('car.glb', (gltf) => { 
                 gltf.scene.scale.set(12, 12, 12); 
-                gltf.scene.rotation.y = Math.PI; 
+                // 💡 修正：如果車子反了，旋轉角度改成 0 或 Math.PI
+                gltf.scene.rotation.y = 0; // 如果原本是 Math.PI，改為 0 試試看
                 car.add(gltf.scene); 
                 checkAllLoaded();
             });
 
-            // 2. 載入路障模型 (已對齊縮放)
+            // 2. 載入路障模型
             loader.load('barriers.glb', (gltf) => { 
                 obsModel1 = gltf.scene; obsModel1.scale.set(0.8, 0.8, 0.8); checkAllLoaded(); 
             });
@@ -192,8 +183,11 @@
                 obsModel2 = gltf.scene; obsModel2.scale.set(1.5, 1.5, 1.5); checkAllLoaded(); 
             });
             loader.load('police car.glb', (gltf) => { 
-                obsModel3 = gltf.scene; obsModel3.scale.set(12, 12, 12); 
-                obsModel3.rotation.y = Math.PI; checkAllLoaded(); 
+                obsModel3 = gltf.scene; 
+                obsModel3.scale.set(12, 12, 12); 
+                // 💡 修正：警察車轉 90 度對準車道
+                obsModel3.rotation.y = Math.PI / 2; 
+                checkAllLoaded(); 
             });
 
             camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
@@ -215,7 +209,6 @@
             const type = Math.random();
             let obs = new THREE.Group();
             let model;
-
             if (type < 0.33) model = obsModel1;
             else if (type < 0.66) model = obsModel2;
             else { model = obsModel3; obs.userData = { isCar: true, speed: currentSpeed * 0.4 }; }
@@ -237,11 +230,15 @@
             if (!gameStarted) return;
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
-            car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI;
+            
+            // 💡 修正：車頭擺動感（原本加了 Math.PI 可能是導致反向的原因）
+            car.rotation.y = (targetX - car.position.x) * 0.1; 
 
             obstacles.forEach((obs, i) => {
                 obs.position.z += obs.userData && obs.userData.isCar ? currentSpeed * 0.6 : currentSpeed;
-                if (Math.abs(car.position.z - obs.position.z) < 2.2 && Math.abs(car.position.x - obs.position.x) < 1.6) {
+                const distZ = Math.abs(car.position.z - obs.position.z);
+                const distX = Math.abs(car.position.x - obs.position.x);
+                if (distZ < 2.2 && distX < 1.6) {
                     document.getElementById('crashSound').play();
                     if (settings.mode === 'hard') {
                         gameStarted = false;
@@ -257,7 +254,6 @@
             decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); }});
             renderer.render(scene, camera);
         }
-
         window.onload = init3D;
     </script>
 </body>
