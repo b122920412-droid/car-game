@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 視覺修正版</title>
+    <title>亡命飆速 - 方向修正版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #87CEEB; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center; color: white; }
@@ -67,7 +67,7 @@
 
     <script>
         let scene, camera, renderer, car, grassPlane, gameStarted = false, score = 0;
-        let obstacles = [], decor = [], roadLines = [];
+        let obstacles = [], roadLines = [];
         let obsModel1, obsModel2, obsModel3; 
         let policeLightR, policeLightB; 
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
@@ -102,9 +102,9 @@
         }
 
         function updateSeasons() {
-            const seasonIndex = Math.floor(score / 150) % 4;
             const skyColors = [0x87CEEB, 0xfff9c4, 0xffcc80, 0xd1d9e6];
             const grassColors = [0x7cfc00, 0x228b22, 0xdaa520, 0xffffff];
+            const seasonIndex = Math.floor(score / 150) % 4;
             if(scene) {
                 scene.background = new THREE.Color(skyColors[seasonIndex]);
                 scene.fog.color.setHex(skyColors[seasonIndex]);
@@ -136,7 +136,6 @@
             const sun = new THREE.DirectionalLight(0xffffff, 1.2);
             sun.position.set(10, 50, 10); scene.add(sun);
 
-            // 地面與馬路 (修正馬路顏色)
             const grassGeo = new THREE.PlaneGeometry(2000, 2000);
             const grassMat = new THREE.MeshPhongMaterial({ color: 0x7cfc00 });
             grassPlane = new THREE.Mesh(grassGeo, grassMat);
@@ -146,7 +145,6 @@
             const road = new THREE.Mesh(new THREE.PlaneGeometry(22, 2000), new THREE.MeshPhongMaterial({ color: 0x333333 }));
             road.rotation.x = -Math.PI / 2; scene.add(road);
 
-            // 虛線
             for (let i = 0; i < 60; i++) {
                 const line = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 7), new THREE.MeshBasicMaterial({ color: 0xcccccc }));
                 line.rotation.x = -Math.PI / 2; line.position.set(-1.8, 0.05, -i * 12);
@@ -157,15 +155,14 @@
             const loader = new THREE.GLTFLoader();
             car = new THREE.Group(); scene.add(car);
 
-            // 1. 載入主角車 (修正角度 Math.PI 是讓它正對前方)
+            // 💡 主角車方向關鍵修正
             loader.load('car.glb', (gltf) => { 
                 gltf.scene.scale.set(6, 6, 6); 
-                gltf.scene.rotation.y = Math.PI; 
+                gltf.scene.rotation.y = 0; // 先設為 0
                 car.add(gltf.scene); 
                 checkAllLoaded();
             });
 
-            // 2. 載入障礙物 (修正比例與角度)
             loader.load('barriers.glb', (gltf) => { obsModel1 = gltf.scene; obsModel1.scale.set(0.6, 0.6, 0.6); checkAllLoaded(); });
             loader.load('Traffic Cone.glb', (gltf) => { obsModel2 = gltf.scene; obsModel2.scale.set(1.5, 1.5, 1.5); checkAllLoaded(); });
             loader.load('police car.glb', (gltf) => { 
@@ -173,7 +170,6 @@
                 obsModel3.rotation.y = Math.PI / 2; checkAllLoaded(); 
             });
 
-            // 警察燈
             policeLightR = new THREE.PointLight(0xff0000, 0, 50);
             policeLightB = new THREE.PointLight(0x0000ff, 0, 50);
             scene.add(policeLightR, policeLightB);
@@ -203,9 +199,10 @@
             if (!gameStarted) return;
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
-            car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI;
+            
+            // 💡 這裡也移除了 Math.PI
+            car.rotation.y = (targetX - car.position.x) * 0.1; 
 
-            // 爆閃燈邏輯
             let flash = Math.floor(Date.now() / 150) % 2;
             policeLightR.intensity = (flash === 0) ? 20 : 0;
             policeLightB.intensity = (flash === 1) ? 20 : 0;
