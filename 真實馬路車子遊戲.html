@@ -199,21 +199,21 @@
             // 2. 障礙物 1 (barriers.glb)
             loader.load('barriers.glb', function (gltf) {
                 obsModel1 = gltf.scene;
-                obsModel1.scale.set(8, 8, 8);
+                obsModel1.scale.set(2, 2, 2);
                 checkLoaded();
             });
 
             // 3. 障礙物 2 (Traffic Cone.glb)
             loader.load('Traffic Cone.glb', function (gltf) {
                 obsModel2 = gltf.scene;
-                obsModel2.scale.set(10, 10, 10);
+                obsModel2.scale.set(2, 2, 2);
                 checkLoaded();
             });
 
             // 4. 障礙物 3 (police car.glb - NPC)
             loader.load('police car.glb', function (gltf) {
                 obsModel3 = gltf.scene;
-                obsModel3.scale.set(10, 10, 10);
+                obsModel3.scale.set(2, 2, 2);
                 obsModel3.rotation.y = Math.PI; // 讓車頭朝前
                 checkLoaded();
             });
