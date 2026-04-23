@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 實心車體終極修復版</title>
+    <title>亡命飆速 - 警車視覺強化版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -25,7 +25,7 @@
 <body>
     <div id="start-screen">
         <div class="title">亡命飆速</div>
-        <div class="warning-text">⚠️ 系統檢測：車體結構已加固！</div>
+        <div class="warning-text">🚨 警告：前方警方已設下強力路障！</div>
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -79,25 +79,14 @@
             document.getElementById(`${type}-${val}`).classList.add('active');
         }
 
-        // 💡 終極修復函數：重寫所有材質屬性
-        function forceSolidMaterial(model) {
+        // 💡 修正材質透明度但不覆蓋原始材質
+        function fixTransparentMaterials(model) {
             model.traverse((node) => {
                 if (node.isMesh) {
-                    // 保留原始顏色
-                    const oldColor = node.material.color ? node.material.color.clone() : new THREE.Color(0xffffff);
-                    const oldMap = node.material.map;
-                    
-                    // 替換為全新的標準材質，徹底關閉 Alpha 管道
-                    node.material = new THREE.MeshStandardMaterial({
-                        color: oldColor,
-                        map: oldMap,
-                        transparent: false,
-                        opacity: 1.0,
-                        alphaTest: 0,
-                        depthWrite: true,
-                        depthTest: true,
-                        side: THREE.DoubleSide // 渲染內外兩面，增加厚實感
-                    });
+                    node.material.transparent = false;
+                    node.material.opacity = 1.0;
+                    node.material.alphaTest = 0.5; // 忽略部分透明度
+                    node.material.depthWrite = true;
                     node.material.needsUpdate = true;
                 }
             });
@@ -127,7 +116,7 @@
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.outputEncoding = THREE.sRGBEncoding;
+            renderer.outputEncoding = THREE.sRGBEncoding; // 💡 讓色彩更正確
             document.body.appendChild(renderer.domElement);
 
             scene.add(new THREE.AmbientLight(0xffffff, 1.2));
@@ -156,7 +145,7 @@
 
             loader.load('car.glb', (gltf) => { 
                 let model = gltf.scene;
-                forceSolidMaterial(model);
+                fixTransparentMaterials(model);
                 model.scale.set(4.5, 4.5, 4.5); 
                 model.rotation.y = 0; 
                 car.add(model); 
@@ -167,9 +156,18 @@
             carFiles.forEach(file => {
                 loader.load(file, (gltf) => {
                     let model = gltf.scene;
-                    forceSolidMaterial(model);
-                    if(file === 'car6.glb') model.scale.set(2.0, 2.0, 2.0); // 警車縮小
-                    else model.scale.set(3.2, 3.2, 3.2);
+                    fixTransparentMaterials(model);
+                    if(file === 'car6.glb') {
+                        model.scale.set(1.8, 1.8, 1.8); // 💡 警車進一步縮小
+                        // 💡 在警車上面加一個 3D 燈條
+                        let barGeo = new THREE.BoxGeometry(2, 0.3, 0.5);
+                        let barMat = new THREE.MeshBasicMaterial({color: 0x333333});
+                        let lightBar = new THREE.Mesh(barGeo, barMat);
+                        lightBar.position.y = 1.2;
+                        model.add(lightBar);
+                    } else {
+                        model.scale.set(3.2, 3.2, 3.2);
+                    }
                     obsCarModels[file] = model; 
                     checkLoaded();
                 }, undefined, (err) => { checkLoaded(); });
@@ -195,9 +193,10 @@
             let carClone = obsCarModels[randomKey].clone();
             
             if (randomKey === 'car6.glb') {
-                carClone.rotation.y = 0; // 警車維持橫向攔截
+                carClone.rotation.y = 0; // 💡 警車橫放
+                carClone.userData = { isPolice: true };
             } else {
-                carClone.rotation.y = Math.PI / 2; // 路人車同向
+                carClone.rotation.y = Math.PI / 2; // 💡 同向直行
             }
             
             carClone.position.set(lanes[Math.floor(Math.random() * 3)], 0, -120);
@@ -221,9 +220,10 @@
             car.position.x += (targetX - car.position.x) * 0.15;
             car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
 
+            // 💡 主角紅藍警燈閃爍
             let flash = Math.floor(Date.now() / 150) % 2;
-            policeLightR.intensity = (flash === 0) ? 30 : 0;
-            policeLightB.intensity = (flash === 1) ? 30 : 0;
+            policeLightR.intensity = (flash === 0) ? 35 : 0;
+            policeLightB.intensity = (flash === 1) ? 35 : 0;
             policeLightR.position.set(car.position.x - 2, 5, car.position.z);
             policeLightB.position.set(car.position.x + 2, 5, car.position.z);
 
@@ -236,7 +236,7 @@
                 const distX = Math.abs(car.position.x - obs.position.x);
                 if (distZ < 1.3 && distX < 0.9) {
                     document.getElementById('crashSound').play();
-                    gameStarted = false; setTimeout(() => { alert("🚨 任務失敗！得分: " + score); location.reload(); }, 100);
+                    gameStarted = false; setTimeout(() => { alert("💥 被逮捕！得分: " + score); location.reload(); }, 100);
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
