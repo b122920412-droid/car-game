@@ -158,7 +158,7 @@
             // 💡 主角車方向關鍵修正
             loader.load('car.glb', (gltf) => { 
                 gltf.scene.scale.set(6, 6, 6); 
-                gltf.scene.rotation.y = 0; // 先設為 0
+                gltf.scene.rotation.y = Math.PI;
                 car.add(gltf.scene); 
                 checkAllLoaded();
             });
