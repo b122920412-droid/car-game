@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>賽車小遊戲-亡命飆速</title>
+    <title>亡命飆速 - 3D 終極修復版</title>
     <style>
-        html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
+        html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #87CEEB; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center; color: white; }
         .title { font-size: 42px; font-weight: 900; letter-spacing: 2px; color: #fff; text-shadow: 0 0 20px #007bff; margin-bottom: 10px; }
         .start-btn { padding: 15px 45px; font-size: 22px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; margin-top: 25px; box-shadow: 0 5px 20px rgba(0,123,255,0.6); }
@@ -17,8 +17,8 @@
 </head>
 <body>
     <div id="start-screen">
-        <div class="title">亡命飆速</div>
-        <button id="start-btn" class="start-btn" disabled onclick="requestAndStart()">資源載入中...</button>
+        <div class="title">四季賽車：重裝追捕</div>
+        <button id="start-btn" class="start-btn" disabled onclick="requestAndStart()">模型下載中...</button>
     </div>
 
     <div id="ui-layer">
@@ -44,32 +44,57 @@
             document.getElementById('start-screen').style.display = 'none';
             initControls(); 
             animate();
-            setInterval(() => { if(gameStarted) score++; document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0'); }, 100);
+            
+            setInterval(() => { 
+                if(gameStarted) {
+                    score++; 
+                    document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0');
+                    document.getElementById('speedo').innerText = `${Math.floor(currentSpeed * 50)} KM/H`;
+                    if(score % 100 === 0 && currentSpeed < 5) currentSpeed += 0.1;
+                }
+            }, 100);
+            
             setInterval(createPoliceObstacle, 1000);
-            setInterval(createDecor, 700);
+            setInterval(createDecor, 800);
         }
 
         function init3D() {
             scene = new THREE.Scene();
-            scene.fog = new THREE.Fog(0xbbdefb, 30, 120);
+            // 💡 修正 1：設定天空顏色背景
+            scene.background = new THREE.Color(0x87CEEB); 
+            scene.fog = new THREE.Fog(0x87CEEB, 40, 150);
+
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.outputEncoding = THREE.sRGBEncoding;
             document.body.appendChild(renderer.domElement);
 
-            // 環境光
-            scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-            const sun = new THREE.DirectionalLight(0xffffff, 1.0); sun.position.set(10, 20, 10); scene.add(sun);
+            // 💡 修正 2：加強環境光
+            scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+            const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+            sun.position.set(10, 50, 10);
+            scene.add(sun);
 
-            // 地面與馬路
-            const road = new THREE.Mesh(new THREE.PlaneGeometry(22, 2000), new THREE.MeshPhongMaterial({ color: 0x1a1a1a }));
-            road.rotation.x = -Math.PI / 2; scene.add(road);
+            // 💡 修正 3：加入綠色草地
+            const grassGeo = new THREE.PlaneGeometry(2000, 2000);
+            const grassMat = new THREE.MeshPhongMaterial({ color: 0x7cfc00 });
+            const grass = new THREE.Mesh(grassGeo, grassMat);
+            grass.rotation.x = -Math.PI / 2;
+            grass.position.y = -0.1; 
+            scene.add(grass);
+
+            // 💡 修正 4：馬路寬度與位置
+            const road = new THREE.Mesh(new THREE.PlaneGeometry(22, 2000), new THREE.MeshPhongMaterial({ color: 0x333333 }));
+            road.rotation.x = -Math.PI / 2;
+            road.position.y = 0;
+            scene.add(road);
 
             const loader = new THREE.GLTFLoader();
 
-            // 1. 載入主角車
-            car = new THREE.Group(); scene.add(car);
+            // 載入主角車
+            car = new THREE.Group();
+            scene.add(car);
             loader.load('car.glb', (gltf) => { 
                 gltf.scene.scale.set(12, 12, 12); 
                 gltf.scene.rotation.y = Math.PI; 
@@ -77,13 +102,27 @@
                 checkAllLoaded();
             });
 
-            // 2. 載入路障模型 (對應你的檔名)
-            loader.load('barriers.glb', (gltf) => { obsModel1 = gltf.scene; obsModel1.scale.set(2, 2, 2); checkAllLoaded(); });
-            loader.load('Traffic Cone.glb', (gltf) => { obsModel2 = gltf.scene; obsModel2.scale.set(2, 2, 2); checkAllLoaded(); });
-            loader.load('police car.glb', (gltf) => { obsModel3 = gltf.scene; obsModel3.scale.set(2, 2, 2); obsModel3.rotation.y = Math.PI; checkAllLoaded(); });
+            // 載入路障 (已優化比例)
+            loader.load('barriers.glb', (gltf) => { 
+                obsModel1 = gltf.scene; 
+                obsModel1.scale.set(0.7, 0.7, 0.7); // 修正拒馬大小
+                checkAllLoaded(); 
+            });
+            loader.load('Traffic Cone.glb', (gltf) => { 
+                obsModel2 = gltf.scene; 
+                obsModel2.scale.set(1.2, 1.2, 1.2); // 修正交通錐大小
+                checkAllLoaded(); 
+            });
+            loader.load('police car.glb', (gltf) => { 
+                obsModel3 = gltf.scene; 
+                obsModel3.scale.set(12, 12, 12); 
+                obsModel3.rotation.y = Math.PI; // 修正警察車朝向
+                checkAllLoaded(); 
+            });
 
             car.position.z = 15;
-            camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
+            camera.position.set(0, 8, 28);
+            camera.lookAt(0, 2, 0);
         }
 
         let loadedCount = 0;
@@ -109,7 +148,8 @@
             if (modelSample) obs.add(modelSample.clone());
             
             obs.position.set(lanes[Math.floor(Math.random() * 3)], 0, -120);
-            scene.add(obs); obstacles.push(obs);
+            scene.add(obs);
+            obstacles.push(obs);
         }
 
         function initControls() {
@@ -118,23 +158,41 @@
                 if (e.key === 'ArrowRight' && currentLaneIndex < 2) currentLaneIndex++;
                 targetX = lanes[currentLaneIndex];
             });
+            window.addEventListener('touchstart', (e) => {
+                if (e.touches[0].clientX < window.innerWidth / 2) { if (currentLaneIndex > 0) currentLaneIndex--; }
+                else { if (currentLaneIndex < 2) currentLaneIndex++; }
+                targetX = lanes[currentLaneIndex];
+            });
         }
 
         function animate() {
             if (!gameStarted) return;
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
+            car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI;
+
             obstacles.forEach((obs, i) => {
                 obs.position.z += obs.userData.isCar ? currentSpeed * 0.6 : currentSpeed;
-                if (Math.abs(car.position.z - obs.position.z) < 2 && Math.abs(car.position.x - obs.position.x) < 2) {
-                    gameStarted = false; alert("🚨 任務失敗！得分: " + score); location.reload();
+                const distZ = Math.abs(car.position.z - obs.position.z);
+                const distX = Math.abs(car.position.x - obs.position.x);
+                if (distZ < 2.0 && distX < 1.5) {
+                    gameStarted = false;
+                    alert("🚨 被警方攔截！最終得分: " + score);
+                    location.reload();
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
             renderer.render(scene, camera);
         }
 
-        function createDecor() { /* 樹木邏輯省略以維持精簡 */ }
+        function createDecor() { 
+            const side = Math.random() > 0.5 ? 1 : -1;
+            const tree = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 6), new THREE.MeshPhongMaterial({ color: 0x228b22 }));
+            tree.position.set(side * 12, 3, -120);
+            scene.add(tree);
+            decor.push(tree);
+            setTimeout(() => { scene.remove(tree); }, 10000);
+        }
 
         window.onload = init3D;
     </script>
