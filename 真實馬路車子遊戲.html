@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 實心車體優化版</title>
+    <title>亡命飆速 - 實心渲染最終版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -25,7 +25,7 @@
 <body>
     <div id="start-screen">
         <div class="title">亡命飆速</div>
-        <div class="warning-text">⚠️ 警告：警方已佈署路障！全速逃離！</div>
+        <div class="warning-text">🚨 警告：前方已被警方封鎖！</div>
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -79,12 +79,15 @@
             document.getElementById(`${type}-${val}`).classList.add('active');
         }
 
-        // 💡 核心優化：強制移除材質透明度
-        function makeSolid(model) {
+        // 💡 終極實心強化邏輯
+        function makeCompletelySolid(model) {
             model.traverse((node) => {
                 if (node.isMesh) {
                     node.material.transparent = false;
-                    node.material.opacity = 1;
+                    node.material.opacity = 1.0;
+                    node.material.depthWrite = true;
+                    node.material.depthTest = true;
+                    node.material.side = THREE.FrontSide; // 只渲染正面，防止內壁透出
                     node.material.needsUpdate = true;
                 }
             });
@@ -95,8 +98,7 @@
             gameStarted = true;
             document.getElementById('start-screen').style.display = 'none';
             currentSpeed = 1.2 + (settings.diff * 0.5); 
-            initControls(); 
-            animate();
+            initControls(); animate();
             setInterval(() => {
                 if(gameStarted) {
                     score++;
@@ -117,7 +119,7 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+            scene.add(new THREE.AmbientLight(0xffffff, 1.3));
             const sun = new THREE.DirectionalLight(0xffffff, 1.0);
             sun.position.set(10, 50, 10); scene.add(sun);
 
@@ -143,7 +145,7 @@
 
             loader.load('car.glb', (gltf) => { 
                 let model = gltf.scene;
-                makeSolid(model); // 強制實心
+                makeCompletelySolid(model); // 強制實心渲染
                 model.scale.set(4.5, 4.5, 4.5); 
                 model.rotation.y = 0; 
                 car.add(model); 
@@ -154,8 +156,8 @@
             carFiles.forEach(file => {
                 loader.load(file, (gltf) => {
                     let model = gltf.scene;
-                    makeSolid(model); // 強制實心
-                    if(file === 'car6.glb') model.scale.set(2.2, 2.2, 2.2); // 縮小警車
+                    makeCompletelySolid(model); // 強制實心渲染
+                    if(file === 'car6.glb') model.scale.set(2.0, 2.0, 2.0); // 警車再次縮小
                     else model.scale.set(3.2, 3.2, 3.2);
                     obsCarModels[file] = model; 
                     checkLoaded();
@@ -182,7 +184,7 @@
             let carClone = obsCarModels[randomKey].clone();
             
             if (randomKey === 'car6.glb') {
-                carClone.rotation.y = 0; // 警車橫向攔截
+                carClone.rotation.y = 0; // 警車橫向
             } else {
                 carClone.rotation.y = Math.PI / 2; // 1-5號車同向直行
             }
@@ -223,7 +225,7 @@
                 const distX = Math.abs(car.position.x - obs.position.x);
                 if (distZ < 1.3 && distX < 0.9) {
                     document.getElementById('crashSound').play();
-                    gameStarted = false; setTimeout(() => { alert("🚨 任務失敗！得分: " + score); location.reload(); }, 100);
+                    gameStarted = false; setTimeout(() => { alert("🚨 逮捕歸案！得分: " + score); location.reload(); }, 100);
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
