@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 終極修復版</title>
+    <title>亡命飆速 - 視覺修正版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #87CEEB; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center; color: white; }
@@ -73,6 +73,7 @@
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let currentSpeed = 1.6, hp = 100;
         let settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
+        let loadedCount = 0;
 
         function setSetting(type, val) {
             settings[type] = val;
@@ -81,7 +82,8 @@
         }
 
         function requestAndStart() {
-            document.getElementById('bgm').play().catch(() => {});
+            const bgm = document.getElementById('bgm');
+            bgm.volume = 0.2; bgm.play().catch(() => {});
             gameStarted = true;
             document.getElementById('start-screen').style.display = 'none';
             if (settings.mode === 'easy') document.getElementById('hp-container').style.display = 'block';
@@ -97,7 +99,6 @@
                 }
             }, 100);
             setInterval(createPoliceObstacle, 1000 - (settings.diff * 120));
-            setInterval(createDecor, 700);
         }
 
         function updateSeasons() {
@@ -112,24 +113,13 @@
         }
 
         function initControls() {
-            window.addEventListener('keydown', (e) => {
-                if (e.key === 'ArrowLeft' && currentLaneIndex > 0) currentLaneIndex--;
-                if (e.key === 'ArrowRight' && currentLaneIndex < 2) currentLaneIndex++;
-                targetX = lanes[currentLaneIndex];
-            });
+            const moveLeft = () => { if (currentLaneIndex > 0) currentLaneIndex--; targetX = lanes[currentLaneIndex]; };
+            const moveRight = () => { if (currentLaneIndex < 2) currentLaneIndex++; targetX = lanes[currentLaneIndex]; };
+            window.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') moveLeft(); if (e.key === 'ArrowRight') moveRight(); });
             window.addEventListener('touchstart', (e) => {
                 if (!gameStarted || settings.ctrl !== 'touch') return;
-                if (e.touches[0].clientX < window.innerWidth / 2) { if (currentLaneIndex > 0) currentLaneIndex--; }
-                else { if (currentLaneIndex < 2) currentLaneIndex++; }
-                targetX = lanes[currentLaneIndex];
+                if (e.touches[0].clientX < window.innerWidth / 2) moveLeft(); else moveRight();
             });
-            if (settings.ctrl === 'tilt') {
-                window.addEventListener('deviceorientation', (e) => {
-                    const tilt = e.gamma; 
-                    if (tilt < -10) currentLaneIndex = 0; else if (tilt > 10) currentLaneIndex = 2; else currentLaneIndex = 1;
-                    targetX = lanes[currentLaneIndex];
-                });
-            }
         }
 
         function init3D() {
@@ -142,24 +132,24 @@
             renderer.outputEncoding = THREE.sRGBEncoding;
             document.body.appendChild(renderer.domElement);
 
-            scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+            scene.add(new THREE.AmbientLight(0xffffff, 1.0));
             const sun = new THREE.DirectionalLight(0xffffff, 1.2);
             sun.position.set(10, 50, 10); scene.add(sun);
 
-            // 草地與馬路
+            // 地面與馬路 (修正馬路顏色)
             const grassGeo = new THREE.PlaneGeometry(2000, 2000);
             const grassMat = new THREE.MeshPhongMaterial({ color: 0x7cfc00 });
             grassPlane = new THREE.Mesh(grassGeo, grassMat);
             grassPlane.rotation.x = -Math.PI / 2;
-            grassPlane.position.y = -0.05; scene.add(grassPlane);
+            grassPlane.position.y = -0.1; scene.add(grassPlane);
 
             const road = new THREE.Mesh(new THREE.PlaneGeometry(22, 2000), new THREE.MeshPhongMaterial({ color: 0x333333 }));
             road.rotation.x = -Math.PI / 2; scene.add(road);
 
-            // 💡 補回馬路虛線
+            // 虛線
             for (let i = 0; i < 60; i++) {
                 const line = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 7), new THREE.MeshBasicMaterial({ color: 0xcccccc }));
-                line.rotation.x = -Math.PI / 2; line.position.set(-1.8, 0.06, -i * 12);
+                line.rotation.x = -Math.PI / 2; line.position.set(-1.8, 0.05, -i * 12);
                 scene.add(line); roadLines.push(line);
                 const line2 = line.clone(); line2.position.x = 1.8; scene.add(line2); roadLines.push(line2);
             }
@@ -167,29 +157,23 @@
             const loader = new THREE.GLTFLoader();
             car = new THREE.Group(); scene.add(car);
 
-            // 1. 載入主角車 (修正縮放與方向)
+            // 1. 載入主角車 (修正角度 Math.PI 是讓它正對前方)
             loader.load('car.glb', (gltf) => { 
-                gltf.scene.scale.set(6, 6, 6); // 縮小一點
-                gltf.scene.rotation.y = Math.PI; // 轉向正前方
+                gltf.scene.scale.set(6, 6, 6); 
+                gltf.scene.rotation.y = Math.PI; 
                 car.add(gltf.scene); 
                 checkAllLoaded();
             });
 
-            // 2. 載入障礙物
-            loader.load('barriers.glb', (gltf) => { 
-                obsModel1 = gltf.scene; obsModel1.scale.set(0.6, 0.6, 0.6); checkAllLoaded(); 
-            });
-            loader.load('Traffic Cone.glb', (gltf) => { 
-                obsModel2 = gltf.scene; obsModel2.scale.set(1.2, 1.2, 1.2); checkAllLoaded(); 
-            });
+            // 2. 載入障礙物 (修正比例與角度)
+            loader.load('barriers.glb', (gltf) => { obsModel1 = gltf.scene; obsModel1.scale.set(0.6, 0.6, 0.6); checkAllLoaded(); });
+            loader.load('Traffic Cone.glb', (gltf) => { obsModel2 = gltf.scene; obsModel2.scale.set(1.5, 1.5, 1.5); checkAllLoaded(); });
             loader.load('police car.glb', (gltf) => { 
-                obsModel3 = gltf.scene; 
-                obsModel3.scale.set(6, 6, 6); // 跟主角對齊
-                obsModel3.rotation.y = Math.PI / 2; // 警察車轉 90 度
-                checkAllLoaded(); 
+                obsModel3 = gltf.scene; obsModel3.scale.set(6, 6, 6); 
+                obsModel3.rotation.y = Math.PI / 2; checkAllLoaded(); 
             });
 
-            // 💡 補回警察追捕爆閃燈
+            // 警察燈
             policeLightR = new THREE.PointLight(0xff0000, 0, 50);
             policeLightB = new THREE.PointLight(0x0000ff, 0, 50);
             scene.add(policeLightR, policeLightB);
@@ -201,7 +185,6 @@
         function checkAllLoaded() {
             loadedCount++; if(loadedCount >= 4) { document.getElementById('start-btn').disabled = false; document.getElementById('start-btn').innerText = "進入賽道"; }
         }
-        let loadedCount = 0;
 
         function createPoliceObstacle() {
             if (!gameStarted) return;
@@ -211,17 +194,9 @@
             if (type < 0.33) model = obsModel1;
             else if (type < 0.66) model = obsModel2;
             else { model = obsModel3; obs.userData = { isCar: true, speed: currentSpeed * 0.4 }; }
-
             if (model) obs.add(model.clone());
             obs.position.set(lanes[Math.floor(Math.random() * 3)], 0, -120);
             scene.add(obs); obstacles.push(obs);
-        }
-
-        function createDecor() {
-            const side = Math.random() > 0.5 ? 1 : -1;
-            const tree = new THREE.Mesh(new THREE.CylinderGeometry(1, 1.5, 6), new THREE.MeshPhongMaterial({ color: 0x228b22 }));
-            tree.position.set(side * 12, 3, -120);
-            scene.add(tree); decor.push(tree);
         }
 
         function animate() {
@@ -230,16 +205,14 @@
             car.position.x += (targetX - car.position.x) * 0.15;
             car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI;
 
-            // 💡 警察閃燈動畫
+            // 爆閃燈邏輯
             let flash = Math.floor(Date.now() / 150) % 2;
-            policeLightR.intensity = (flash === 0) ? 15 : 0;
-            policeLightB.intensity = (flash === 1) ? 15 : 0;
+            policeLightR.intensity = (flash === 0) ? 20 : 0;
+            policeLightB.intensity = (flash === 1) ? 20 : 0;
             policeLightR.position.set(car.position.x - 5, 5, 25);
             policeLightB.position.set(car.position.x + 5, 5, 25);
 
             roadLines.forEach(l => { l.position.z += currentSpeed; if(l.position.z > 40) l.position.z = -200; });
-            decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); }});
-            
             obstacles.forEach((obs, i) => {
                 obs.position.z += obs.userData && obs.userData.isCar ? currentSpeed * 0.6 : currentSpeed;
                 const distZ = Math.abs(car.position.z - obs.position.z);
