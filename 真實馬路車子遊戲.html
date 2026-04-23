@@ -3,17 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 完整介面整合版</title>
+    <title>亡命飆速 - 整合優化版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         
-        /* 💡 確保 UI 層在最前方 */
+        /* UI 層級設定，確保選單在最前方 */
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
         .title { font-size: 42px; font-weight: 900; letter-spacing: 2px; color: #fff; text-shadow: 0 0 20px #007bff; margin-bottom: 10px; }
         .warning-text { color: #ff4444; font-weight: bold; margin-bottom: 20px; letter-spacing: 2px; animation: blink 1.5s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-
-        /* 選單方塊樣式 */
+        
         .setting-group { margin: 10px 0; display: flex; flex-direction: column; align-items: center; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 15px; width: 340px; border: 1px solid rgba(255,255,255,0.1); }
         .setting-label { font-size: 14px; color: #00d2ff; margin-bottom: 8px; font-weight: bold; }
         .option-group { display: flex; gap: 8px; }
@@ -22,7 +21,6 @@
         .start-btn { padding: 15px 45px; font-size: 22px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; margin-top: 25px; box-shadow: 0 5px 20px rgba(0,123,255,0.6); }
         .start-btn:disabled { background: #444; cursor: wait; }
 
-        /* 遊戲中介面 */
         #ui-layer { position: absolute; top: 20px; left: 20px; right: 20px; pointer-events: none; z-index: 2000; }
         #scoreDisplay { font-size: 32px; color: #0f0; font-family: monospace; font-weight: bold; float: right; text-shadow: 0 0 10px #0f0; }
         #hp-container { width: 180px; height: 12px; background: #333; border: 2px solid #fff; border-radius: 10px; overflow: hidden; display: none; margin-bottom: 5px; }
@@ -94,8 +92,7 @@
         }
 
         function requestAndStart() {
-            const bgm = document.getElementById('bgm');
-            bgm.volume = 0.2; bgm.play().catch(() => {});
+            document.getElementById('bgm').play().catch(() => {});
             gameStarted = true;
             document.getElementById('start-screen').style.display = 'none';
             if (settings.mode === 'easy') document.getElementById('hp-container').style.display = 'block';
@@ -156,7 +153,6 @@
             const sun = new THREE.DirectionalLight(0xffffff, 1.2);
             sun.position.set(10, 50, 10); scene.add(sun);
 
-            // 地面與馬路
             const grassGeo = new THREE.PlaneGeometry(2000, 2000);
             const grassMat = new THREE.MeshPhongMaterial({ color: 0x7cfc00 });
             grassPlane = new THREE.Mesh(grassGeo, grassMat);
@@ -166,7 +162,7 @@
             const road = new THREE.Mesh(new THREE.PlaneGeometry(22, 2000), new THREE.MeshPhongMaterial({ color: 0x333333 }));
             road.rotation.x = -Math.PI / 2; scene.add(road);
 
-            // 虛線
+            // 標線
             for (let i = 0; i < 60; i++) {
                 const line = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 7), new THREE.MeshBasicMaterial({ color: 0xcccccc }));
                 line.rotation.x = -Math.PI / 2; line.position.set(-1.8, 0.05, -i * 12);
@@ -177,24 +173,24 @@
             const loader = new THREE.GLTFLoader();
             car = new THREE.Group(); scene.add(car);
 
-            // 1. 主角車載入 (旋轉 y=0 確保車頭朝前)
+            // 1. 主角車 (旋轉 y=0 確保車頭朝前，視模型而定，若不對改 Math.PI)
             loader.load('car.glb', (gltf) => { 
                 gltf.scene.scale.set(6, 6, 6); 
                 gltf.scene.rotation.y = 0; 
                 car.add(gltf.scene); checkLoaded();
             });
 
-            // 2. 障礙物載入
+            // 2. 障礙物與橫放警車
             loader.load('barriers.glb', (gltf) => { obsModel1 = gltf.scene; obsModel1.scale.set(0.6, 0.6, 0.6); checkLoaded(); });
             loader.load('Traffic Cone.glb', (gltf) => { obsModel2 = gltf.scene; obsModel2.scale.set(1.5, 1.5, 1.5); checkLoaded(); });
             loader.load('police car.glb', (gltf) => { 
                 obsModel3 = gltf.scene; 
                 obsModel3.scale.set(6, 6, 6); 
-                obsModel3.rotation.y = Math.PI / 2; // 💡 警察車橫放
+                obsModel3.rotation.y = Math.PI / 2; // 💡 警車橫放
                 checkLoaded(); 
             });
 
-            // 補回爆閃燈
+            // 警報燈
             policeLightR = new THREE.PointLight(0xff0000, 0, 50);
             policeLightB = new THREE.PointLight(0x0000ff, 0, 50);
             scene.add(policeLightR, policeLightB);
@@ -218,7 +214,8 @@
             let model;
             if (type < 0.33) model = obsModel1;
             else if (type < 0.66) model = obsModel2;
-            else { model = obsModel3; obs.userData = { isCar: true, speed: currentSpeed * 0.4 }; }
+            else { model = obsModel3; obs.userData = { isCar: true }; }
+            
             if (model) obs.add(model.clone());
             obs.position.set(lanes[Math.floor(Math.random() * 3)], 0, -120);
             scene.add(obs); obstacles.push(obs);
@@ -226,12 +223,11 @@
 
         function createDecor() {
             if (!gameStarted) return;
-            // 💡 生成裝飾樹木
             const side = Math.random() > 0.5 ? 1 : -1;
             const tree = new THREE.Group();
             const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 2.5), new THREE.MeshPhongMaterial({color: 0x8B4513}));
             const foliage = new THREE.Mesh(new THREE.ConeGeometry(2.5, 6, 8), new THREE.MeshPhongMaterial({color: 0x228b22}));
-            foliage.position.y = 4; tree.add(trunk); tree.add(foliage);
+            foliage.position.y = 4; tree.add(trunk, foliage);
             tree.position.set(side * 14, 1, -150);
             scene.add(tree); decor.push(tree);
         }
@@ -239,10 +235,11 @@
         function animate() {
             if (!gameStarted) return;
             requestAnimationFrame(animate);
+            
             car.position.x += (targetX - car.position.x) * 0.15;
-            car.rotation.y = (targetX - car.position.x) * 0.1;
+            // 💡 修正轉向旋轉，避免車頭反掉
+            car.rotation.y = (targetX - car.position.x) * 0.1 + 0; 
 
-            // 💡 警察爆閃燈效果
             let flash = Math.floor(Date.now() / 150) % 2;
             policeLightR.intensity = (flash === 0) ? 25 : 0;
             policeLightB.intensity = (flash === 1) ? 25 : 0;
@@ -253,18 +250,26 @@
             decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); }});
             
             obstacles.forEach((obs, i) => {
-                obs.position.z += obs.userData && obs.userData.isCar ? currentSpeed * 0.6 : currentSpeed;
+                obs.position.z += currentSpeed;
+                
                 const distZ = Math.abs(car.position.z - obs.position.z);
                 const distX = Math.abs(car.position.x - obs.position.x);
                 
-                if (distZ < 2.0 && distX < 1.5) {
+                // 💡 碰撞偵測優化：解決隔空碰撞
+                if (distZ < 1.8 && distX < 1.0) {
                     document.getElementById('crashSound').play();
                     if (settings.mode === 'hard') {
-                        gameStarted = false; setTimeout(() => { alert("🚨 任務失敗！得分: " + score); location.reload(); }, 100);
+                        gameStarted = false; 
+                        setTimeout(() => { alert("🚨 任務失敗！得分: " + score); location.reload(); }, 100);
                     } else {
-                        hp -= 25; document.getElementById('hp-bar').style.width = hp + "%";
-                        scene.remove(obs); obstacles.splice(i, 1);
-                        if (hp <= 0) { gameStarted = false; setTimeout(() => { alert("💥 被逮捕！得分: " + score); location.reload(); }, 100); }
+                        hp -= 25; 
+                        document.getElementById('hp-bar').style.width = hp + "%";
+                        scene.remove(obs); 
+                        obstacles.splice(i, 1);
+                        if (hp <= 0) {
+                            gameStarted = false;
+                            setTimeout(() => { alert("💥 被逮捕！得分: " + score); location.reload(); }, 100);
+                        }
                     }
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
