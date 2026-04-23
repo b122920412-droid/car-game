@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 3D 最終修正版</title>
+    <title>亡命飆速 - 終極修復版</title>
     <style>
-        html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
+        html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #87CEEB; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center; color: white; }
         .title { font-size: 42px; font-weight: 900; letter-spacing: 2px; color: #fff; text-shadow: 0 0 20px #007bff; margin-bottom: 10px; }
         .warning-text { color: #ff4444; font-weight: bold; margin-bottom: 20px; letter-spacing: 2px; animation: blink 1.5s infinite; }
@@ -22,7 +22,6 @@
         #hp-container { width: 180px; height: 12px; background: #333; border: 2px solid #fff; border-radius: 10px; overflow: hidden; display: none; margin-bottom: 5px; }
         #hp-bar { width: 100%; height: 100%; background: linear-gradient(to right, #ff3333, #ff6666); transition: 0.3s; }
         #speedo { color: #fff; font-size: 18px; font-weight: bold; clear: both; float: right; margin-top: 5px; font-family: monospace; }
-        .hint { color: #666; font-size: 12px; margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -52,7 +51,6 @@
             </div>
         </div>
         <button id="start-btn" class="start-btn" disabled onclick="requestAndStart()">資源載入中...</button>
-        <div class="hint">⌨️ 電腦：左右鍵 | 📱 手機：點擊兩側</div>
     </div>
 
     <div id="ui-layer">
@@ -71,6 +69,7 @@
         let scene, camera, renderer, car, grassPlane, gameStarted = false, score = 0;
         let obstacles = [], decor = [], roadLines = [];
         let obsModel1, obsModel2, obsModel3; 
+        let policeLightR, policeLightB; 
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let currentSpeed = 1.6, hp = 100;
         let settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
@@ -82,14 +81,7 @@
         }
 
         function requestAndStart() {
-            const bgm = document.getElementById('bgm');
-            bgm.volume = 0.2; bgm.play().catch(() => {});
-            if (settings.ctrl === 'tilt' && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission().then(s => { start(); }).catch(() => start());
-            } else { start(); }
-        }
-
-        function start() {
+            document.getElementById('bgm').play().catch(() => {});
             gameStarted = true;
             document.getElementById('start-screen').style.display = 'none';
             if (settings.mode === 'easy') document.getElementById('hp-container').style.display = 'block';
@@ -105,7 +97,7 @@
                 }
             }, 100);
             setInterval(createPoliceObstacle, 1000 - (settings.diff * 120));
-            setInterval(createDecor, 800);
+            setInterval(createDecor, 700);
         }
 
         function updateSeasons() {
@@ -143,7 +135,7 @@
         function init3D() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87CEEB);
-            scene.fog = new THREE.Fog(0x87CEEB, 40, 150);
+            scene.fog = new THREE.Fog(0x87CEEB, 40, 180);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -154,6 +146,7 @@
             const sun = new THREE.DirectionalLight(0xffffff, 1.2);
             sun.position.set(10, 50, 10); scene.add(sun);
 
+            // 草地與馬路
             const grassGeo = new THREE.PlaneGeometry(2000, 2000);
             const grassMat = new THREE.MeshPhongMaterial({ color: 0x7cfc00 });
             grassPlane = new THREE.Mesh(grassGeo, grassMat);
@@ -163,46 +156,52 @@
             const road = new THREE.Mesh(new THREE.PlaneGeometry(22, 2000), new THREE.MeshPhongMaterial({ color: 0x333333 }));
             road.rotation.x = -Math.PI / 2; scene.add(road);
 
-            const loader = new THREE.GLTFLoader();
+            // 💡 補回馬路虛線
+            for (let i = 0; i < 60; i++) {
+                const line = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 7), new THREE.MeshBasicMaterial({ color: 0xcccccc }));
+                line.rotation.x = -Math.PI / 2; line.position.set(-1.8, 0.06, -i * 12);
+                scene.add(line); roadLines.push(line);
+                const line2 = line.clone(); line2.position.x = 1.8; scene.add(line2); roadLines.push(line2);
+            }
 
-            // 1. 載入主角車 (修正旋轉角度)
+            const loader = new THREE.GLTFLoader();
             car = new THREE.Group(); scene.add(car);
+
+            // 1. 載入主角車 (修正縮放與方向)
             loader.load('car.glb', (gltf) => { 
-                gltf.scene.scale.set(12, 12, 12); 
-                // 💡 修正：如果車子反了，旋轉角度改成 0 或 Math.PI
-                gltf.scene.rotation.y = 0; // 如果原本是 Math.PI，改為 0 試試看
+                gltf.scene.scale.set(6, 6, 6); // 縮小一點
+                gltf.scene.rotation.y = Math.PI; // 轉向正前方
                 car.add(gltf.scene); 
                 checkAllLoaded();
             });
 
-            // 2. 載入路障模型
+            // 2. 載入障礙物
             loader.load('barriers.glb', (gltf) => { 
-                obsModel1 = gltf.scene; obsModel1.scale.set(0.8, 0.8, 0.8); checkAllLoaded(); 
+                obsModel1 = gltf.scene; obsModel1.scale.set(0.6, 0.6, 0.6); checkAllLoaded(); 
             });
             loader.load('Traffic Cone.glb', (gltf) => { 
-                obsModel2 = gltf.scene; obsModel2.scale.set(1.5, 1.5, 1.5); checkAllLoaded(); 
+                obsModel2 = gltf.scene; obsModel2.scale.set(1.2, 1.2, 1.2); checkAllLoaded(); 
             });
             loader.load('police car.glb', (gltf) => { 
                 obsModel3 = gltf.scene; 
-                obsModel3.scale.set(12, 12, 12); 
-                // 💡 修正：警察車轉 90 度對準車道
-                obsModel3.rotation.y = Math.PI / 2; 
+                obsModel3.scale.set(6, 6, 6); // 跟主角對齊
+                obsModel3.rotation.y = Math.PI / 2; // 警察車轉 90 度
                 checkAllLoaded(); 
             });
+
+            // 💡 補回警察追捕爆閃燈
+            policeLightR = new THREE.PointLight(0xff0000, 0, 50);
+            policeLightB = new THREE.PointLight(0x0000ff, 0, 50);
+            scene.add(policeLightR, policeLightB);
 
             camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
             car.position.z = 15;
         }
 
-        let loadedCount = 0;
         function checkAllLoaded() {
-            loadedCount++;
-            if(loadedCount >= 4) {
-                const btn = document.getElementById('start-btn');
-                btn.disabled = false;
-                btn.innerText = "進入賽道";
-            }
+            loadedCount++; if(loadedCount >= 4) { document.getElementById('start-btn').disabled = false; document.getElementById('start-btn').innerText = "進入賽道"; }
         }
+        let loadedCount = 0;
 
         function createPoliceObstacle() {
             if (!gameStarted) return;
@@ -219,7 +218,6 @@
         }
 
         function createDecor() {
-            if (!gameStarted) return;
             const side = Math.random() > 0.5 ? 1 : -1;
             const tree = new THREE.Mesh(new THREE.CylinderGeometry(1, 1.5, 6), new THREE.MeshPhongMaterial({ color: 0x228b22 }));
             tree.position.set(side * 12, 3, -120);
@@ -230,19 +228,26 @@
             if (!gameStarted) return;
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
-            
-            // 💡 修正：車頭擺動感（原本加了 Math.PI 可能是導致反向的原因）
-            car.rotation.y = (targetX - car.position.x) * 0.1; 
+            car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI;
 
+            // 💡 警察閃燈動畫
+            let flash = Math.floor(Date.now() / 150) % 2;
+            policeLightR.intensity = (flash === 0) ? 15 : 0;
+            policeLightB.intensity = (flash === 1) ? 15 : 0;
+            policeLightR.position.set(car.position.x - 5, 5, 25);
+            policeLightB.position.set(car.position.x + 5, 5, 25);
+
+            roadLines.forEach(l => { l.position.z += currentSpeed; if(l.position.z > 40) l.position.z = -200; });
+            decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); }});
+            
             obstacles.forEach((obs, i) => {
                 obs.position.z += obs.userData && obs.userData.isCar ? currentSpeed * 0.6 : currentSpeed;
                 const distZ = Math.abs(car.position.z - obs.position.z);
                 const distX = Math.abs(car.position.x - obs.position.x);
-                if (distZ < 2.2 && distX < 1.6) {
+                if (distZ < 2.0 && distX < 1.6) {
                     document.getElementById('crashSound').play();
                     if (settings.mode === 'hard') {
-                        gameStarted = false;
-                        setTimeout(() => { alert("🚨 任務失敗！得分: " + score); location.reload(); }, 100);
+                        gameStarted = false; setTimeout(() => { alert("🚨 任務失敗！得分: " + score); location.reload(); }, 100);
                     } else {
                         hp -= 25; document.getElementById('hp-bar').style.width = hp + "%";
                         scene.remove(obs); obstacles.splice(i, 1);
@@ -251,7 +256,6 @@
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
-            decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); }});
             renderer.render(scene, camera);
         }
         window.onload = init3D;
