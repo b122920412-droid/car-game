@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 3D 警車版</title>
+    <title>賽車小遊戲-亡命飆速</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center; color: white; }
@@ -27,7 +27,7 @@
 </head>
 <body>
     <div id="start-screen">
-        <div class="title">四季賽車挑戰</div>
+        <div class="title">亡命飆速</div>
         <div class="warning-text">⚠️ 警告：警方路障已佈署！逃離追捕！</div>
         
         <div class="setting-group">
@@ -178,8 +178,8 @@
             loader.load('car.glb', function (gltf) {
                 const model = gltf.scene;
                 
-                // 調整倍率 (若是這台警車，建議 10-15 倍)
-                model.scale.set(12.0, 12.0, 12.0); 
+                // 調整倍率 
+                model.scale.set(8.0, 8.0, 8.0); 
                 
                 // 旋轉方向讓車頭朝前
                 model.rotation.y = Math.PI; 
