@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 完整介面整合版</title>
+    <title>亡命飆速 - 最終修復版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -22,12 +22,14 @@
         #hp-container { width: 180px; height: 12px; background: #333; border: 2px solid #fff; border-radius: 10px; overflow: hidden; display: none; margin-bottom: 5px; }
         #hp-bar { width: 100%; height: 100%; background: linear-gradient(to right, #ff3333, #ff6666); transition: 0.3s; }
         #speedo { color: #fff; font-size: 18px; font-weight: bold; clear: both; float: right; margin-top: 5px; font-family: monospace; }
+        .hint { color: #666; font-size: 12px; margin-top: 20px; }
     </style>
 </head>
 <body>
     <div id="start-screen">
         <div class="title">亡命飆速</div>
         <div class="warning-text">⚠️ 警告：警方路障已佈署！逃離追捕！</div>
+        
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -35,6 +37,7 @@
                 <button id="ctrl-tilt" class="opt-btn" onclick="setSetting('ctrl', 'tilt')">體感陀螺儀</button>
             </div>
         </div>
+
         <div class="setting-group">
             <div class="setting-label">🛡️ 挑戰難度</div>
             <div class="option-group">
@@ -43,6 +46,7 @@
                 <button id="diff-3" class="opt-btn" onclick="setSetting('diff', 3)">困難</button>
             </div>
         </div>
+
         <div class="setting-group">
             <div class="setting-label">🔥 遊戲模式</div>
             <div class="option-group">
@@ -50,7 +54,9 @@
                 <button id="mode-easy" class="opt-btn" onclick="setSetting('mode', 'easy')">❤️ 護甲 (有HP)</button>
             </div>
         </div>
+
         <button id="start-btn" class="start-btn" disabled onclick="requestAndStart()">資源載入中...</button>
+        <div class="hint">⌨️ 電腦：左右鍵 | 📱 手機：點擊兩側</div>
     </div>
 
     <div id="ui-layer">
@@ -75,8 +81,8 @@
         let settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
         let loadedCount = 0;
 
-        // 💡 關鍵變數：如果車頭還是反的，請把這裡的 0 改成 Math.PI
-        let carRotationOffset = 0; 
+        // 💡 關鍵：這次直接設定 Math.PI (180度) 來解決影片中倒著開的問題
+        const CAR_ROT_OFFSET = Math.PI; 
 
         function setSetting(type, val) {
             settings[type] = val;
@@ -160,16 +166,15 @@
 
             loader.load('car.glb', (gltf) => { 
                 gltf.scene.scale.set(6, 6, 6); 
-                gltf.scene.rotation.y = carRotationOffset; 
+                gltf.scene.rotation.y = CAR_ROT_OFFSET; 
                 car.add(gltf.scene); checkLoaded();
             });
 
-            // 💡 如果你換了柵欄模型，把 'barriers.glb' 改成你的新檔名
             loader.load('barriers.glb', (gltf) => { obsModel1 = gltf.scene; obsModel1.scale.set(0.6, 0.6, 0.6); checkLoaded(); });
             loader.load('Traffic Cone.glb', (gltf) => { obsModel2 = gltf.scene; obsModel2.scale.set(1.5, 1.5, 1.5); checkLoaded(); });
             loader.load('police car.glb', (gltf) => { 
                 obsModel3 = gltf.scene; obsModel3.scale.set(6, 6, 6); 
-                obsModel3.rotation.y = Math.PI / 2; // 警車橫放
+                obsModel3.rotation.y = Math.PI / 2; 
                 checkLoaded(); 
             });
 
@@ -218,8 +223,8 @@
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
             
-            // 💡 這裡也加上了 offset，保證轉向動畫不會讓車頭反轉
-            car.rotation.y = (targetX - car.position.x) * 0.1 + carRotationOffset; 
+            // 💡 動畫旋轉也要加上 OFFSET
+            car.rotation.y = (targetX - car.position.x) * 0.1 + CAR_ROT_OFFSET; 
 
             let flash = Math.floor(Date.now() / 150) % 2;
             policeLightR.intensity = (flash === 0) ? 25 : 0;
@@ -235,7 +240,7 @@
                 const distZ = Math.abs(car.position.z - obs.position.z);
                 const distX = Math.abs(car.position.x - obs.position.x);
                 
-                // 💡 碰撞判定修正：distX < 1.0 解決隔空撞到的問題
+                // 💡 縮小判定範圍解決隔空碰撞
                 if (distZ < 1.8 && distX < 1.0) {
                     document.getElementById('crashSound').play();
                     if (settings.mode === 'hard') {
