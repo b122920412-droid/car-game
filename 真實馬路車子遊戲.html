@@ -70,12 +70,15 @@
     <script>
         let scene, camera, renderer, car, grassPlane, gameStarted = false, score = 0;
         let obstacles = [], decor = [], roadLines = [];
-        let obsCarModels = {}; // 💡 改用物件存儲，方便根據名稱處理旋轉
+        let obsCarModels = {}; 
         let policeLightR, policeLightB; 
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let currentSpeed = 1.6, hp = 100;
         let settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
         let loadedCount = 0;
+
+        // 💡 主角車鎖定轉正
+        const CAR_ROT_OFFSET = 0; 
 
         function setSetting(type, val) {
             settings[type] = val;
@@ -135,7 +138,7 @@
             // 1. 載入主角車
             loader.load('car.glb', (gltf) => { 
                 gltf.scene.scale.set(6, 6, 6); 
-                gltf.scene.rotation.y = 0; 
+                gltf.scene.rotation.y = CAR_ROT_OFFSET; 
                 car.add(gltf.scene); 
                 checkLoaded();
             });
@@ -146,7 +149,7 @@
                 loader.load(file, (gltf) => {
                     let model = gltf.scene;
                     model.scale.set(6, 6, 6);
-                    obsCarModels[file] = model; // 存入物件，Key 是檔名
+                    obsCarModels[file] = model; 
                     checkLoaded();
                 });
             });
@@ -161,6 +164,7 @@
 
         function checkLoaded() {
             loadedCount++; 
+            // 💡 主角(1) + 路人(6) = 7
             if(loadedCount >= 7) { 
                 document.getElementById('start-btn').disabled = false; 
                 document.getElementById('start-btn').innerText = "進入賽道"; 
@@ -175,13 +179,11 @@
             let randomKey = modelKeys[Math.floor(Math.random() * modelKeys.length)];
             let carClone = obsCarModels[randomKey].clone();
             
-            // 💡 旋轉邏輯修正
+            // 💡 邏輯：CAR6 橫放攔截，其他 1-5 號正向前進
             if (randomKey === 'CAR6.glb') {
-                // 如果是警車，橫著放 (轉 90 度)
-                carClone.rotation.y = Math.PI / 2; 
+                carClone.rotation.y = Math.PI / 2; // 警車橫向路障
             } else {
-                // 如果是 1~5 號車，正常往前開 (與主角同向)
-                carClone.rotation.y = 0; 
+                carClone.rotation.y = 0; // 路人車與玩家同向
             }
             
             obs.add(carClone);
@@ -204,7 +206,7 @@
             if (!gameStarted) return;
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
-            car.rotation.y = (targetX - car.position.x) * 0.1; 
+            car.rotation.y = (targetX - car.position.x) * 0.1 + CAR_ROT_OFFSET; 
 
             let flash = Math.floor(Date.now() / 150) % 2;
             policeLightR.intensity = (flash === 0) ? 25 : 0;
@@ -220,9 +222,10 @@
                 const distZ = Math.abs(car.position.z - obs.position.z);
                 const distX = Math.abs(car.position.x - obs.position.x);
                 
+                // 碰撞判定精準化
                 if (distZ < 2.0 && distX < 1.2) {
                     document.getElementById('crashSound').play();
-                    gameStarted = false; setTimeout(() => { alert("🚨 逮捕歸案！得分: " + score); location.reload(); }, 100);
+                    gameStarted = false; setTimeout(() => { alert("🚨 任務失敗！得分: " + score); location.reload(); }, 100);
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
