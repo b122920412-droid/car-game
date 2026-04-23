@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 同向車流修正版</title>
+    <title>亡命飆速 - 實心車體優化版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -25,7 +25,7 @@
 <body>
     <div id="start-screen">
         <div class="title">亡命飆速</div>
-        <div class="warning-text">🚨 追逐開始！甩開後方的追兵！</div>
+        <div class="warning-text">⚠️ 警告：警方已佈署路障！全速逃離！</div>
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -79,6 +79,17 @@
             document.getElementById(`${type}-${val}`).classList.add('active');
         }
 
+        // 💡 核心優化：強制移除材質透明度
+        function makeSolid(model) {
+            model.traverse((node) => {
+                if (node.isMesh) {
+                    node.material.transparent = false;
+                    node.material.opacity = 1;
+                    node.material.needsUpdate = true;
+                }
+            });
+        }
+
         function requestAndStart() {
             document.getElementById('bgm').play().catch(() => {});
             gameStarted = true;
@@ -93,7 +104,7 @@
                     document.getElementById('speedo').innerText = Math.floor(currentSpeed * 50) + " KM/H";
                 }
             }, 100);
-            setInterval(createObstacle, 1000); 
+            setInterval(createObstacle, 1100); 
             setInterval(createDecor, 600);
         }
 
@@ -132,6 +143,7 @@
 
             loader.load('car.glb', (gltf) => { 
                 let model = gltf.scene;
+                makeSolid(model); // 強制實心
                 model.scale.set(4.5, 4.5, 4.5); 
                 model.rotation.y = 0; 
                 car.add(model); 
@@ -142,8 +154,8 @@
             carFiles.forEach(file => {
                 loader.load(file, (gltf) => {
                     let model = gltf.scene;
-                    // 警車(car6)更小一點，一般路人稍微大一點
-                    if(file === 'car6.glb') model.scale.set(2.0, 2.0, 2.0);
+                    makeSolid(model); // 強制實心
+                    if(file === 'car6.glb') model.scale.set(2.2, 2.2, 2.2); // 縮小警車
                     else model.scale.set(3.2, 3.2, 3.2);
                     obsCarModels[file] = model; 
                     checkLoaded();
@@ -169,12 +181,10 @@
             let randomKey = keys[Math.floor(Math.random() * keys.length)];
             let carClone = obsCarModels[randomKey].clone();
             
-            // 💡 路人車方向修正：
             if (randomKey === 'car6.glb') {
-                carClone.rotation.y = 0; // 警車維持橫向攔截
+                carClone.rotation.y = 0; // 警車橫向攔截
             } else {
-                // 💡 針對模型原始角度，使用 Math.PI / 2 將其轉正並同向行駛
-                carClone.rotation.y = Math.PI / 2; 
+                carClone.rotation.y = Math.PI / 2; // 1-5號車同向直行
             }
             
             carClone.position.set(lanes[Math.floor(Math.random() * 3)], 0, -120);
@@ -196,8 +206,6 @@
             if (!gameStarted) return;
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
-            
-            // 💡 主角方向：維持 Math.PI
             car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
 
             let flash = Math.floor(Date.now() / 150) % 2;
@@ -215,7 +223,7 @@
                 const distX = Math.abs(car.position.x - obs.position.x);
                 if (distZ < 1.3 && distX < 0.9) {
                     document.getElementById('crashSound').play();
-                    gameStarted = false; setTimeout(() => { alert("💥 被逮捕！得分: " + score); location.reload(); }, 100);
+                    gameStarted = false; setTimeout(() => { alert("🚨 任務失敗！得分: " + score); location.reload(); }, 100);
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
