@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 警車攔截版</title>
+    <title>亡命飆速 - 終極整合修正版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -28,7 +28,6 @@
     <div id="start-screen">
         <div class="title">亡命飆速</div>
         <div class="warning-text">⚠️ 警告：警方路障已佈署！逃離追捕！</div>
-        
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -51,7 +50,6 @@
                 <button id="mode-easy" class="opt-btn" onclick="setSetting('mode', 'easy')">❤️ 護甲 (有HP)</button>
             </div>
         </div>
-
         <button id="start-btn" class="start-btn" disabled onclick="requestAndStart()">資源載入中...</button>
     </div>
 
@@ -76,9 +74,7 @@
         let currentSpeed = 1.6, hp = 100;
         let settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
         let loadedCount = 0;
-
-        // 💡 主角車鎖定轉正
-        const CAR_ROT_OFFSET = 0; 
+        let totalToLoad = 7; // 主角車 + CAR1~CAR6
 
         function setSetting(type, val) {
             settings[type] = val;
@@ -138,7 +134,7 @@
             // 1. 載入主角車
             loader.load('car.glb', (gltf) => { 
                 gltf.scene.scale.set(6, 6, 6); 
-                gltf.scene.rotation.y = CAR_ROT_OFFSET; 
+                gltf.scene.rotation.y = 0; // 車頭朝前
                 car.add(gltf.scene); 
                 checkLoaded();
             });
@@ -164,8 +160,7 @@
 
         function checkLoaded() {
             loadedCount++; 
-            // 💡 主角(1) + 路人(6) = 7
-            if(loadedCount >= 7) { 
+            if(loadedCount >= totalToLoad) { 
                 document.getElementById('start-btn').disabled = false; 
                 document.getElementById('start-btn').innerText = "進入賽道"; 
             }
@@ -179,11 +174,11 @@
             let randomKey = modelKeys[Math.floor(Math.random() * modelKeys.length)];
             let carClone = obsCarModels[randomKey].clone();
             
-            // 💡 邏輯：CAR6 橫放攔截，其他 1-5 號正向前進
+            // 💡 旋轉邏輯：CAR6 橫放攔截，其他 1-5 號正向前進
             if (randomKey === 'CAR6.glb') {
-                carClone.rotation.y = Math.PI / 2; // 警車橫向路障
+                carClone.rotation.y = Math.PI / 2; // 警車攔截
             } else {
-                carClone.rotation.y = 0; // 路人車與玩家同向
+                carClone.rotation.y = 0; // 路人車同向
             }
             
             obs.add(carClone);
@@ -206,7 +201,8 @@
             if (!gameStarted) return;
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
-            car.rotation.y = (targetX - car.position.x) * 0.1 + CAR_ROT_OFFSET; 
+            // 💡 主角車鎖定轉正方向
+            car.rotation.y = (targetX - car.position.x) * 0.1; 
 
             let flash = Math.floor(Date.now() / 150) % 2;
             policeLightR.intensity = (flash === 0) ? 25 : 0;
@@ -222,10 +218,9 @@
                 const distZ = Math.abs(car.position.z - obs.position.z);
                 const distX = Math.abs(car.position.x - obs.position.x);
                 
-                // 碰撞判定精準化
                 if (distZ < 2.0 && distX < 1.2) {
                     document.getElementById('crashSound').play();
-                    gameStarted = false; setTimeout(() => { alert("🚨 任務失敗！得分: " + score); location.reload(); }, 100);
+                    gameStarted = false; setTimeout(() => { alert("💥 碰撞發生！得分: " + score); location.reload(); }, 100);
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
