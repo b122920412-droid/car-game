@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 最終整合版</title>
+    <title>亡命飆速 - 最終修復</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -22,14 +22,12 @@
         #hp-container { width: 180px; height: 12px; background: #333; border: 2px solid #fff; border-radius: 10px; overflow: hidden; display: none; margin-bottom: 5px; }
         #hp-bar { width: 100%; height: 100%; background: linear-gradient(to right, #ff3333, #ff6666); transition: 0.3s; }
         #speedo { color: #fff; font-size: 18px; font-weight: bold; clear: both; float: right; margin-top: 5px; font-family: monospace; }
-        .hint { color: #666; font-size: 12px; margin-top: 20px; }
     </style>
 </head>
 <body>
     <div id="start-screen">
         <div class="title">亡命飆速</div>
         <div class="warning-text">⚠️ 警告：警方路障已佈署！逃離追捕！</div>
-        
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -37,7 +35,6 @@
                 <button id="ctrl-tilt" class="opt-btn" onclick="setSetting('ctrl', 'tilt')">體感陀螺儀</button>
             </div>
         </div>
-
         <div class="setting-group">
             <div class="setting-label">🛡️ 挑戰難度</div>
             <div class="option-group">
@@ -46,7 +43,6 @@
                 <button id="diff-3" class="opt-btn" onclick="setSetting('diff', 3)">困難</button>
             </div>
         </div>
-
         <div class="setting-group">
             <div class="setting-label">🔥 遊戲模式</div>
             <div class="option-group">
@@ -54,9 +50,7 @@
                 <button id="mode-easy" class="opt-btn" onclick="setSetting('mode', 'easy')">❤️ 護甲 (有HP)</button>
             </div>
         </div>
-
         <button id="start-btn" class="start-btn" disabled onclick="requestAndStart()">資源載入中...</button>
-        <div class="hint">⌨️ 電腦：左右鍵 | 📱 手機：點擊兩側</div>
     </div>
 
     <div id="ui-layer">
@@ -106,24 +100,6 @@
             setInterval(createDecor, 600);
         }
 
-        function updateSeasons() {
-            const seasonIndex = Math.floor(score / 150) % 4;
-            const skyColors = [0x87CEEB, 0xfff9c4, 0xffcc80, 0xd1d9e6];
-            const grassColors = [0x7cfc00, 0x228b22, 0xdaa520, 0xffffff];
-            if(scene) {
-                scene.background = new THREE.Color(skyColors[seasonIndex]);
-                scene.fog.color.setHex(skyColors[seasonIndex]);
-                if (grassPlane) grassPlane.material.color.setHex(grassColors[seasonIndex]);
-            }
-        }
-
-        function initControls() {
-            const moveLeft = () => { if (currentLaneIndex > 0) currentLaneIndex--; targetX = lanes[currentLaneIndex]; };
-            const moveRight = () => { if (currentLaneIndex < 2) currentLaneIndex++; targetX = lanes[currentLaneIndex]; };
-            window.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') moveLeft(); if (e.key === 'ArrowRight') moveRight(); });
-            window.addEventListener('touchstart', (e) => { if (!gameStarted) return; if (e.touches[0].clientX < window.innerWidth / 2) moveLeft(); else moveRight(); });
-        }
-
         function init3D() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87CEEB);
@@ -131,7 +107,6 @@
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.outputEncoding = THREE.sRGBEncoding;
             document.body.appendChild(renderer.domElement);
 
             scene.add(new THREE.AmbientLight(0xffffff, 1.0));
@@ -157,20 +132,17 @@
 
             loader.load('car.glb', (gltf) => { 
                 gltf.scene.scale.set(6, 6, 6); 
-                gltf.scene.rotation.y = Math.PI; // 💡 鎖定轉正
+                // 💡 預設旋轉設為 0
+                gltf.scene.rotation.y = 0; 
                 car.add(gltf.scene); checkLoaded();
             });
 
-            // 💡 柵欄更換：把 'barriers.glb' 改成你的新檔名
-            loader.load('barriers.glb', (gltf) => { 
-                obsModel1 = gltf.scene; obsModel1.scale.set(0.6, 0.6, 0.6); checkLoaded(); 
-            });
-
+            // 💡 你可以把這裡的 'barriers.glb' 換成你想要的新檔名
+            loader.load('barriers.glb', (gltf) => { obsModel1 = gltf.scene; obsModel1.scale.set(0.6, 0.6, 0.6); checkLoaded(); });
             loader.load('Traffic Cone.glb', (gltf) => { obsModel2 = gltf.scene; obsModel2.scale.set(1.5, 1.5, 1.5); checkLoaded(); });
-
             loader.load('police car.glb', (gltf) => { 
                 obsModel3 = gltf.scene; obsModel3.scale.set(6, 6, 6); 
-                obsModel3.rotation.y = 0; // 💡 讓警車橫放
+                obsModel3.rotation.y = 0; // 💡 警察車橫向
                 checkLoaded(); 
             });
 
@@ -211,7 +183,10 @@
             if (!gameStarted) return;
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
-            car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; // 💡 這裡也要保持 + Math.PI
+            
+            // 💡 關鍵修正：將車子頭轉向前方 (Math.PI 代表 180度)
+            // 如果還是反的，請將下面的 Math.PI 改成 0
+            car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
 
             let flash = Math.floor(Date.now() / 150) % 2;
             policeLightR.intensity = (flash === 0) ? 25 : 0;
@@ -226,20 +201,30 @@
                 obs.position.z += currentSpeed;
                 const distZ = Math.abs(car.position.z - obs.position.z);
                 const distX = Math.abs(car.position.x - obs.position.x);
-                // 💡 碰撞判定精準化
                 if (distZ < 1.8 && distX < 1.0) {
                     document.getElementById('crashSound').play();
-                    if (settings.mode === 'hard') {
-                        gameStarted = false; setTimeout(() => { alert("🚨 任務失敗！得分: " + score); location.reload(); }, 100);
-                    } else {
-                        hp -= 25; document.getElementById('hp-bar').style.width = hp + "%";
-                        scene.remove(obs); obstacles.splice(i, 1);
-                        if (hp <= 0) { gameStarted = false; setTimeout(() => { alert("💥 被逮捕！得分: " + score); location.reload(); }, 100); }
-                    }
+                    gameStarted = false; setTimeout(() => { alert("🚨 任務失敗！得分: " + score); location.reload(); }, 100);
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
             renderer.render(scene, camera);
+        }
+
+        function updateSeasons() {
+            const seasonIndex = Math.floor(score / 150) % 4;
+            const skyColors = [0x87CEEB, 0xfff9c4, 0xffcc80, 0xd1d9e6];
+            const grassColors = [0x7cfc00, 0x228b22, 0xdaa520, 0xffffff];
+            if(scene) {
+                scene.background = new THREE.Color(skyColors[seasonIndex]);
+                scene.fog.color.setHex(skyColors[seasonIndex]);
+                if (grassPlane) grassPlane.material.color.setHex(grassColors[seasonIndex]);
+            }
+        }
+        function initControls() {
+            const moveLeft = () => { if (currentLaneIndex > 0) currentLaneIndex--; targetX = lanes[currentLaneIndex]; };
+            const moveRight = () => { if (currentLaneIndex < 2) currentLaneIndex++; targetX = lanes[currentLaneIndex]; };
+            window.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') moveLeft(); if (e.key === 'ArrowRight') moveRight(); });
+            window.addEventListener('touchstart', (e) => { if (!gameStarted) return; if (e.touches[0].clientX < window.innerWidth / 2) moveLeft(); else moveRight(); });
         }
         window.onload = init3D;
     </script>
