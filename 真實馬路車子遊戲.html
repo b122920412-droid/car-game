@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 方向最終修正版</title>
+    <title>亡命飆速 - 真實比例版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -19,9 +19,9 @@
         .start-btn:disabled { background: #444; cursor: wait; }
         #ui-layer { position: absolute; top: 20px; left: 20px; right: 20px; pointer-events: none; z-index: 2000; }
         #scoreDisplay { font-size: 32px; color: #0f0; font-family: monospace; font-weight: bold; float: right; text-shadow: 0 0 10px #0f0; }
-        #hp-container { width: 180px; height: 12px; background: #333; border: 2px solid #fff; border-radius: 10px; overflow: hidden; display: none; margin-bottom: 5px; }
-        #hp-bar { width: 100%; height: 100%; background: linear-gradient(to right, #ff3333, #ff6666); transition: 0.3s; }
         #speedo { color: #fff; font-size: 18px; font-weight: bold; clear: both; float: right; margin-top: 5px; font-family: monospace; }
+        #hp-container { width: 180px; height: 12px; background: #333; border: 2px solid #fff; border-radius: 10px; overflow: hidden; display: none; }
+        #hp-bar { width: 100%; height: 100%; background: linear-gradient(to right, #ff3333, #ff6666); }
     </style>
 </head>
 <body>
@@ -95,10 +95,11 @@
                     score++;
                     document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0');
                     document.getElementById('speedo').innerText = Math.floor(currentSpeed * 50) + " KM/H";
+                    updateSeasons(); 
                 }
             }, 100);
-            setInterval(createObstacle, 1000); 
-            setInterval(createDecor, 600);
+            setInterval(createObstacle, 900); 
+            setInterval(createDecor, 500);
         }
 
         function init3D() {
@@ -110,17 +111,15 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            scene.add(new THREE.AmbientLight(0xffffff, 1.0));
-            const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+            scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+            const sun = new THREE.DirectionalLight(0xffffff, 1.0);
             sun.position.set(10, 50, 10); scene.add(sun);
 
             const road = new THREE.Mesh(new THREE.PlaneGeometry(22, 2000), new THREE.MeshPhongMaterial({ color: 0x333333 }));
             road.rotation.x = -Math.PI / 2; scene.add(road);
 
-            const grassGeo = new THREE.PlaneGeometry(2000, 2000);
-            const grassMat = new THREE.MeshPhongMaterial({ color: 0x7cfc00 });
-            grassPlane = new THREE.Mesh(grassGeo, grassMat);
-            grassPlane.rotation.x = -Math.PI / 2; grassPlane.position.y = -0.1; scene.add(grassPlane);
+            const grass = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshPhongMaterial({ color: 0x7cfc00 }));
+            grass.rotation.x = -Math.PI / 2; grass.position.y = -0.1; scene.add(grass);
 
             for (let i = 0; i < 60; i++) {
                 const line = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 7), new THREE.MeshBasicMaterial({ color: 0xcccccc }));
@@ -134,24 +133,23 @@
             scene.add(policeLightR, policeLightB);
 
             const loader = new THREE.GLTFLoader();
-            car = new THREE.Group(); 
-            scene.add(car);
+            car = new THREE.Group(); scene.add(car);
 
-            // 1. 載入主角車 - 旋轉 0
+            // 1. 載入主角車 - 旋轉 0 並縮小至 4
             loader.load('car.glb', (gltf) => { 
                 let model = gltf.scene;
-                model.scale.set(6, 6, 6); 
+                model.scale.set(4, 4, 4); 
                 model.rotation.y = 0; 
                 car.add(model); 
                 checkLoaded();
             });
 
-            // 2. 載入路障小寫檔名
+            // 2. 載入路障小寫檔名 - 縮小至 4
             const carFiles = ['car1.glb', 'car2.glb', 'car3.glb', 'car4.glb', 'car5.glb', 'car6.glb'];
             carFiles.forEach(file => {
                 loader.load(file, (gltf) => {
                     let model = gltf.scene;
-                    model.scale.set(6, 6, 6);
+                    model.scale.set(4, 4, 4);
                     obsCarModels[file] = model; 
                     checkLoaded();
                 }, undefined, (err) => { checkLoaded(); });
@@ -176,11 +174,10 @@
             let randomKey = keys[Math.floor(Math.random() * keys.length)];
             let carClone = obsCarModels[randomKey].clone();
             
-            // 💡 路障方向修正
             if (randomKey === 'car6.glb') {
                 carClone.rotation.y = Math.PI / 2; // 警車橫放
             } else {
-                carClone.rotation.y = Math.PI; // 1~5號車迎面而來(轉180度)
+                carClone.rotation.y = 0; // 其他車與玩家同向前進
             }
             
             carClone.position.set(lanes[Math.floor(Math.random() * 3)], 0, -120);
@@ -192,9 +189,9 @@
             if (!gameStarted) return;
             const side = Math.random() > 0.5 ? 1 : -1;
             const tree = new THREE.Group();
-            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 2.5), new THREE.MeshPhongMaterial({color: 0x8B4513}));
-            const foliage = new THREE.Mesh(new THREE.ConeGeometry(2.5, 6, 8), new THREE.MeshPhongMaterial({color: 0x228b22}));
-            foliage.position.y = 4; tree.add(trunk, foliage);
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 2), new THREE.MeshPhongMaterial({color: 0x8B4513}));
+            const foliage = new THREE.Mesh(new THREE.ConeGeometry(2, 5, 8), new THREE.MeshPhongMaterial({color: 0x228b22}));
+            foliage.position.y = 3.5; tree.add(trunk, foliage);
             tree.position.set(side * 14, 1, -150);
             scene.add(tree); decor.push(tree);
         }
@@ -204,14 +201,14 @@
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
             
-            // 💡 主角車方向修正為 0 偏移
-            car.rotation.y = (targetX - car.position.x) * 0.1 + 0; 
+            // 💡 主角方向鎖定為 0 (基於影片觀察)
+            car.rotation.y = (targetX - car.position.x) * 0.1; 
 
             let flash = Math.floor(Date.now() / 150) % 2;
-            policeLightR.intensity = (flash === 0) ? 25 : 0;
-            policeLightB.intensity = (flash === 1) ? 25 : 0;
-            policeLightR.position.set(car.position.x - 3, 4, 20);
-            policeLightB.position.set(car.position.x + 3, 4, 20);
+            policeLightR.intensity = (flash === 0) ? 30 : 0;
+            policeLightB.intensity = (flash === 1) ? 30 : 0;
+            policeLightR.position.set(car.position.x - 3, 4, 22);
+            policeLightB.position.set(car.position.x + 3, 4, 22);
 
             roadLines.forEach(l => { l.position.z += currentSpeed; if(l.position.z > 40) l.position.z = -200; });
             decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); }});
@@ -220,7 +217,8 @@
                 obs.position.z += currentSpeed;
                 const distZ = Math.abs(car.position.z - obs.position.z);
                 const distX = Math.abs(car.position.x - obs.position.x);
-                if (distZ < 2.0 && distX < 1.2) {
+                // 縮小判定範圍以適應模型縮小
+                if (distZ < 1.6 && distX < 0.9) {
                     document.getElementById('crashSound').play();
                     gameStarted = false; setTimeout(() => { alert("💥 被逮捕！得分: " + score); location.reload(); }, 100);
                 }
@@ -229,6 +227,15 @@
             renderer.render(scene, camera);
         }
 
+        function updateSeasons() {
+            const seasonIndex = Math.floor(score / 150) % 4;
+            const skyColors = [0x87CEEB, 0xfff9c4, 0xffcc80, 0xd1d9e6];
+            const grassColors = [0x7cfc00, 0x228b22, 0xdaa520, 0xffffff];
+            if(scene) {
+                scene.background = new THREE.Color(skyColors[seasonIndex]);
+                scene.fog.color.setHex(skyColors[seasonIndex]);
+            }
+        }
         function initControls() {
             const moveLeft = () => { if (currentLaneIndex > 0) currentLaneIndex--; targetX = lanes[currentLaneIndex]; };
             const moveRight = () => { if (currentLaneIndex < 2) currentLaneIndex++; targetX = lanes[currentLaneIndex]; };
