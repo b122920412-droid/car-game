@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 最終修正整合版</title>
+    <title>亡命飆速 - 終極方向修正版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -19,15 +19,13 @@
         .start-btn:disabled { background: #444; cursor: wait; }
         #ui-layer { position: absolute; top: 20px; left: 20px; right: 20px; pointer-events: none; z-index: 2000; }
         #scoreDisplay { font-size: 32px; color: #0f0; font-family: monospace; font-weight: bold; float: right; text-shadow: 0 0 10px #0f0; }
-        #hp-container { width: 180px; height: 12px; background: #333; border: 2px solid #fff; border-radius: 10px; overflow: hidden; display: none; margin-bottom: 5px; }
-        #hp-bar { width: 100%; height: 100%; background: linear-gradient(to right, #ff3333, #ff6666); transition: 0.3s; }
         #speedo { color: #fff; font-size: 18px; font-weight: bold; clear: both; float: right; margin-top: 5px; font-family: monospace; }
     </style>
 </head>
 <body>
     <div id="start-screen">
         <div class="title">亡命飆速</div>
-        <div class="warning-text">🚨 警告：警方攔截網已佈署！</div>
+        <div class="warning-text">🚨 方向系統已重校！衝出重圍！</div>
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -55,7 +53,6 @@
 
     <div id="ui-layer">
         <div id="scoreDisplay">00000</div>
-        <div id="hp-container"><div id="hp-bar"></div></div>
         <div id="speedo">0 KM/H</div>
     </div>
 
@@ -86,7 +83,6 @@
             document.getElementById('bgm').play().catch(() => {});
             gameStarted = true;
             document.getElementById('start-screen').style.display = 'none';
-            if (settings.mode === 'easy') document.getElementById('hp-container').style.display = 'block';
             currentSpeed = 1.2 + (settings.diff * 0.5); 
             initControls(); 
             animate();
@@ -138,7 +134,7 @@
             loader.load('car.glb', (gltf) => { 
                 let model = gltf.scene;
                 model.scale.set(5, 5, 5); 
-                // 💡 修正主角方向：根據影片，0 是反的，所以我們加 Math.PI 轉 180 度。
+                // 💡 主角車：強制旋轉 180 度 (Math.PI) 解決影片中倒著衝的問題
                 model.rotation.y = Math.PI; 
                 car.add(model); 
                 checkLoaded();
@@ -148,7 +144,6 @@
             carFiles.forEach(file => {
                 loader.load(file, (gltf) => {
                     let model = gltf.scene;
-                    // 💡 障礙物比例縮小，特別是大貨車
                     model.scale.set(3.5, 3.5, 3.5);
                     obsCarModels[file] = model; 
                     checkLoaded();
@@ -174,14 +169,16 @@
             let randomKey = keys[Math.floor(Math.random() * keys.length)];
             let carClone = obsCarModels[randomKey].clone();
             
-            // 💡 邏輯修正：
+            // 💡 路障旋轉重校：
             if (randomKey === 'car6.glb') {
-                carClone.rotation.y = Math.PI / 2; // 警車橫放
+                carClone.rotation.y = 0; // 警車橫向攔截 (原始角度就是橫的)
             } else {
-                carClone.rotation.y = Math.PI; // 1~5 號車與玩家「同向正行」
+                // 💡 1-5 號車：旋轉 -90 度 (-Math.PI / 2) 
+                // 將原本橫著跑的模型轉正，使其跟玩家同向直行
+                carClone.rotation.y = -Math.PI / 2; 
             }
             
-            carClone.position.set(lanes[Math.floor(Math.random() * 3)], 0, -150);
+            carClone.position.set(lanes[Math.floor(Math.random() * 3)], 0, -120);
             scene.add(carClone); 
             obstacles.push(carClone);
         }
@@ -193,7 +190,7 @@
             const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.5), new THREE.MeshPhongMaterial({color: 0x8B4513}));
             const foliage = new THREE.Mesh(new THREE.ConeGeometry(1.5, 4, 8), new THREE.MeshPhongMaterial({color: 0x228b22}));
             foliage.position.y = 2.5; tree.add(trunk, foliage);
-            tree.position.set(side * 14, 1, -120);
+            tree.position.set(side * 14, 1, -150);
             scene.add(tree); decor.push(tree);
         }
 
@@ -202,7 +199,7 @@
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
             
-            // 💡 保持主角車與載入時一致的 Math.PI 轉向
+            // 💡 主角方向同步：Math.PI
             car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
 
             let flash = Math.floor(Date.now() / 150) % 2;
@@ -220,7 +217,7 @@
                 const distX = Math.abs(car.position.x - obs.position.x);
                 if (distZ < 1.5 && distX < 1.0) {
                     document.getElementById('crashSound').play();
-                    gameStarted = false; setTimeout(() => { alert("💥 任務失敗！得分: " + score); location.reload(); }, 100);
+                    gameStarted = false; setTimeout(() => { alert("🚨 逮捕歸案！得分: " + score); location.reload(); }, 100);
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
