@@ -3,16 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 整合優化版</title>
+    <title>亡命飆速 - 終極整合修正版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
-        
-        /* UI 層級設定，確保選單在最前方 */
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
         .title { font-size: 42px; font-weight: 900; letter-spacing: 2px; color: #fff; text-shadow: 0 0 20px #007bff; margin-bottom: 10px; }
         .warning-text { color: #ff4444; font-weight: bold; margin-bottom: 20px; letter-spacing: 2px; animation: blink 1.5s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        
         .setting-group { margin: 10px 0; display: flex; flex-direction: column; align-items: center; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 15px; width: 340px; border: 1px solid rgba(255,255,255,0.1); }
         .setting-label { font-size: 14px; color: #00d2ff; margin-bottom: 8px; font-weight: bold; }
         .option-group { display: flex; gap: 8px; }
@@ -20,13 +17,11 @@
         .opt-btn.active { background: #007bff; box-shadow: 0 0 10px #007bff; border-color: #00ffcc; }
         .start-btn { padding: 15px 45px; font-size: 22px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; margin-top: 25px; box-shadow: 0 5px 20px rgba(0,123,255,0.6); }
         .start-btn:disabled { background: #444; cursor: wait; }
-
         #ui-layer { position: absolute; top: 20px; left: 20px; right: 20px; pointer-events: none; z-index: 2000; }
         #scoreDisplay { font-size: 32px; color: #0f0; font-family: monospace; font-weight: bold; float: right; text-shadow: 0 0 10px #0f0; }
         #hp-container { width: 180px; height: 12px; background: #333; border: 2px solid #fff; border-radius: 10px; overflow: hidden; display: none; margin-bottom: 5px; }
         #hp-bar { width: 100%; height: 100%; background: linear-gradient(to right, #ff3333, #ff6666); transition: 0.3s; }
         #speedo { color: #fff; font-size: 18px; font-weight: bold; clear: both; float: right; margin-top: 5px; font-family: monospace; }
-        .hint { color: #666; font-size: 12px; margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -60,7 +55,6 @@
         </div>
 
         <button id="start-btn" class="start-btn" disabled onclick="requestAndStart()">資源載入中...</button>
-        <div class="hint">⌨️ 電腦：左右鍵 | 📱 手機：點擊兩側</div>
     </div>
 
     <div id="ui-layer">
@@ -130,13 +124,6 @@
                 if (!gameStarted || settings.ctrl !== 'touch') return;
                 if (e.touches[0].clientX < window.innerWidth / 2) moveLeft(); else moveRight();
             });
-            if (settings.ctrl === 'tilt') {
-                window.addEventListener('deviceorientation', (e) => {
-                    const tilt = e.gamma; 
-                    if (tilt < -10) currentLaneIndex = 0; else if (tilt > 10) currentLaneIndex = 2; else currentLaneIndex = 1;
-                    targetX = lanes[currentLaneIndex];
-                });
-            }
         }
 
         function init3D() {
@@ -162,7 +149,6 @@
             const road = new THREE.Mesh(new THREE.PlaneGeometry(22, 2000), new THREE.MeshPhongMaterial({ color: 0x333333 }));
             road.rotation.x = -Math.PI / 2; scene.add(road);
 
-            // 標線
             for (let i = 0; i < 60; i++) {
                 const line = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 7), new THREE.MeshBasicMaterial({ color: 0xcccccc }));
                 line.rotation.x = -Math.PI / 2; line.position.set(-1.8, 0.05, -i * 12);
@@ -173,24 +159,29 @@
             const loader = new THREE.GLTFLoader();
             car = new THREE.Group(); scene.add(car);
 
-            // 1. 主角車 (旋轉 y=0 確保車頭朝前，視模型而定，若不對改 Math.PI)
+            // 💡 主角車：旋轉 Math.PI (180度) 修正倒著開的問題
             loader.load('car.glb', (gltf) => { 
                 gltf.scene.scale.set(6, 6, 6); 
-                gltf.scene.rotation.y = 0; 
+                gltf.scene.rotation.y = Math.PI; 
                 car.add(gltf.scene); checkLoaded();
             });
 
-            // 2. 障礙物與橫放警車
-            loader.load('barriers.glb', (gltf) => { obsModel1 = gltf.scene; obsModel1.scale.set(0.6, 0.6, 0.6); checkLoaded(); });
-            loader.load('Traffic Cone.glb', (gltf) => { obsModel2 = gltf.scene; obsModel2.scale.set(1.5, 1.5, 1.5); checkLoaded(); });
-            loader.load('police car.glb', (gltf) => { 
-                obsModel3 = gltf.scene; 
-                obsModel3.scale.set(6, 6, 6); 
-                obsModel3.rotation.y = Math.PI / 2; // 💡 警車橫放
+            // 💡 柵欄替換：請將下面 'barriers.glb' 改成你的新檔案名稱
+            loader.load('barriers.glb', (gltf) => { 
+                obsModel1 = gltf.scene; 
+                obsModel1.scale.set(0.6, 0.6, 0.6); 
                 checkLoaded(); 
             });
 
-            // 警報燈
+            loader.load('Traffic Cone.glb', (gltf) => { obsModel2 = gltf.scene; obsModel2.scale.set(1.5, 1.5, 1.5); checkLoaded(); });
+            
+            loader.load('police car.glb', (gltf) => { 
+                obsModel3 = gltf.scene; 
+                obsModel3.scale.set(6, 6, 6); 
+                obsModel3.rotation.y = Math.PI / 2; // 警車橫放
+                checkLoaded(); 
+            });
+
             policeLightR = new THREE.PointLight(0xff0000, 0, 50);
             policeLightB = new THREE.PointLight(0x0000ff, 0, 50);
             scene.add(policeLightR, policeLightB);
@@ -215,7 +206,6 @@
             if (type < 0.33) model = obsModel1;
             else if (type < 0.66) model = obsModel2;
             else { model = obsModel3; obs.userData = { isCar: true }; }
-            
             if (model) obs.add(model.clone());
             obs.position.set(lanes[Math.floor(Math.random() * 3)], 0, -120);
             scene.add(obs); obstacles.push(obs);
@@ -235,10 +225,10 @@
         function animate() {
             if (!gameStarted) return;
             requestAnimationFrame(animate);
-            
             car.position.x += (targetX - car.position.x) * 0.15;
-            // 💡 修正轉向旋轉，避免車頭反掉
-            car.rotation.y = (targetX - car.position.x) * 0.1 + 0; 
+            
+            // 💡 轉向動畫同步修正
+            car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
 
             let flash = Math.floor(Date.now() / 150) % 2;
             policeLightR.intensity = (flash === 0) ? 25 : 0;
@@ -251,25 +241,18 @@
             
             obstacles.forEach((obs, i) => {
                 obs.position.z += currentSpeed;
-                
                 const distZ = Math.abs(car.position.z - obs.position.z);
                 const distX = Math.abs(car.position.x - obs.position.x);
                 
-                // 💡 碰撞偵測優化：解決隔空碰撞
+                // 💡 碰撞判定縮小：解決隔空碰撞問題
                 if (distZ < 1.8 && distX < 1.0) {
                     document.getElementById('crashSound').play();
                     if (settings.mode === 'hard') {
-                        gameStarted = false; 
-                        setTimeout(() => { alert("🚨 任務失敗！得分: " + score); location.reload(); }, 100);
+                        gameStarted = false; setTimeout(() => { alert("🚨 任務失敗！得分: " + score); location.reload(); }, 100);
                     } else {
-                        hp -= 25; 
-                        document.getElementById('hp-bar').style.width = hp + "%";
-                        scene.remove(obs); 
-                        obstacles.splice(i, 1);
-                        if (hp <= 0) {
-                            gameStarted = false;
-                            setTimeout(() => { alert("💥 被逮捕！得分: " + score); location.reload(); }, 100);
-                        }
+                        hp -= 25; document.getElementById('hp-bar').style.width = hp + "%";
+                        scene.remove(obs); obstacles.splice(i, 1);
+                        if (hp <= 0) { gameStarted = false; setTimeout(() => { alert("💥 被逮捕！得分: " + score); location.reload(); }, 100); }
                     }
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
