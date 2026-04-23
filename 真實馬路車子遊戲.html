@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 3D 最終優化版</title>
+    <title>賽車小遊戲-亡命飆速</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; text-align: center; color: white; }
@@ -17,7 +17,7 @@
 </head>
 <body>
     <div id="start-screen">
-        <div class="title">四季賽車：重裝追捕</div>
+        <div class="title">亡命飆速</div>
         <button id="start-btn" class="start-btn" disabled onclick="requestAndStart()">資源載入中...</button>
     </div>
 
@@ -44,20 +44,9 @@
             document.getElementById('start-screen').style.display = 'none';
             initControls(); 
             animate();
-            
-            // 計分與速度更新
-            setInterval(() => { 
-                if(gameStarted) {
-                    score++; 
-                    document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0');
-                    document.getElementById('speedo').innerText = `${Math.floor(currentSpeed * 50)} KM/H`;
-                    // 隨時間稍微增加難度
-                    if(score % 100 === 0 && currentSpeed < 5) currentSpeed += 0.1;
-                }
-            }, 100);
-            
+            setInterval(() => { if(gameStarted) score++; document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0'); }, 100);
             setInterval(createPoliceObstacle, 1000);
-            setInterval(createDecor, 800);
+            setInterval(createDecor, 700);
         }
 
         function init3D() {
@@ -69,22 +58,18 @@
             renderer.outputEncoding = THREE.sRGBEncoding;
             document.body.appendChild(renderer.domElement);
 
-            // 燈光設定
+            // 環境光
             scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-            const sun = new THREE.DirectionalLight(0xffffff, 1.0);
-            sun.position.set(10, 20, 10);
-            scene.add(sun);
+            const sun = new THREE.DirectionalLight(0xffffff, 1.0); sun.position.set(10, 20, 10); scene.add(sun);
 
-            // 地面馬路
+            // 地面與馬路
             const road = new THREE.Mesh(new THREE.PlaneGeometry(22, 2000), new THREE.MeshPhongMaterial({ color: 0x1a1a1a }));
-            road.rotation.x = -Math.PI / 2;
-            scene.add(road);
+            road.rotation.x = -Math.PI / 2; scene.add(road);
 
             const loader = new THREE.GLTFLoader();
 
             // 1. 載入主角車
-            car = new THREE.Group();
-            scene.add(car);
+            car = new THREE.Group(); scene.add(car);
             loader.load('car.glb', (gltf) => { 
                 gltf.scene.scale.set(12, 12, 12); 
                 gltf.scene.rotation.y = Math.PI; 
@@ -92,30 +77,13 @@
                 checkAllLoaded();
             });
 
-            // 2. 載入路障模型 (修正比例後的數值)
-            // 拒馬縮小到原本的十分之一
-            loader.load('barriers.glb', (gltf) => { 
-                obsModel1 = gltf.scene; 
-                obsModel1.scale.set(0.8, 0.8, 0.8); 
-                checkAllLoaded(); 
-            });
-            // 交通錐比例調整
-            loader.load('Traffic Cone.glb', (gltf) => { 
-                obsModel2 = gltf.scene; 
-                obsModel2.scale.set(1.5, 1.5, 1.5); 
-                checkAllLoaded(); 
-            });
-            // 警察車比例與主角對齊
-            loader.load('police car.glb', (gltf) => { 
-                obsModel3 = gltf.scene; 
-                obsModel3.scale.set(12, 12, 12); 
-                obsModel3.rotation.y = Math.PI; 
-                checkAllLoaded(); 
-            });
+            // 2. 載入路障模型 (對應你的檔名)
+            loader.load('barriers.glb', (gltf) => { obsModel1 = gltf.scene; obsModel1.scale.set(2, 2, 2); checkAllLoaded(); });
+            loader.load('Traffic Cone.glb', (gltf) => { obsModel2 = gltf.scene; obsModel2.scale.set(2, 2, 2); checkAllLoaded(); });
+            loader.load('police car.glb', (gltf) => { obsModel3 = gltf.scene; obsModel3.scale.set(2, 2, 2); obsModel3.rotation.y = Math.PI; checkAllLoaded(); });
 
             car.position.z = 15;
-            camera.position.set(0, 8, 28);
-            camera.lookAt(0, 2, 0);
+            camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
         }
 
         let loadedCount = 0;
@@ -134,22 +102,14 @@
             let obs = new THREE.Group();
             let modelSample;
 
-            if (type < 0.33) {
-                modelSample = obsModel1; // 拒馬
-            } else if (type < 0.66) {
-                modelSample = obsModel2; // 交通錐
-            } else {
-                modelSample = obsModel3; // 警察車
-                obs.userData = { isCar: true, speed: currentSpeed * 0.4 };
-            }
+            if (type < 0.33) modelSample = obsModel1;
+            else if (type < 0.66) modelSample = obsModel2;
+            else { modelSample = obsModel3; obs.userData = { isCar: true, speed: currentSpeed * 0.4 }; }
 
-            if (modelSample) {
-                obs.add(modelSample.clone());
-            }
+            if (modelSample) obs.add(modelSample.clone());
             
             obs.position.set(lanes[Math.floor(Math.random() * 3)], 0, -120);
-            scene.add(obs);
-            obstacles.push(obs);
+            scene.add(obs); obstacles.push(obs);
         }
 
         function initControls() {
@@ -158,60 +118,23 @@
                 if (e.key === 'ArrowRight' && currentLaneIndex < 2) currentLaneIndex++;
                 targetX = lanes[currentLaneIndex];
             });
-            window.addEventListener('touchstart', (e) => {
-                if (e.touches[0].clientX < window.innerWidth / 2) {
-                    if (currentLaneIndex > 0) currentLaneIndex--;
-                } else {
-                    if (currentLaneIndex < 2) currentLaneIndex++;
-                }
-                targetX = lanes[currentLaneIndex];
-            });
         }
 
         function animate() {
             if (!gameStarted) return;
             requestAnimationFrame(animate);
-            
-            // 主角車平滑移動
             car.position.x += (targetX - car.position.x) * 0.15;
-            car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; // 微調車頭擺動感
-
             obstacles.forEach((obs, i) => {
-                // 移動邏輯：如果是警察車會跑得比靜止路障慢一點點（相對於玩家速度）
                 obs.position.z += obs.userData.isCar ? currentSpeed * 0.6 : currentSpeed;
-                
-                // 精確碰撞判定 (根據模型縮小後的尺寸調整)
-                const distZ = Math.abs(car.position.z - obs.position.z);
-                const distX = Math.abs(car.position.x - obs.position.x);
-                
-                if (distZ < 2.2 && distX < 1.6) {
-                    gameStarted = false;
-                    alert("🚨 被警方攔截！最終得分: " + score);
-                    location.reload();
+                if (Math.abs(car.position.z - obs.position.z) < 2 && Math.abs(car.position.x - obs.position.x) < 2) {
+                    gameStarted = false; alert("🚨 任務失敗！得分: " + score); location.reload();
                 }
-                
-                // 超過畫面刪除，釋放記憶體
-                if (obs.position.z > 40) {
-                    scene.remove(obs);
-                    obstacles.splice(i, 1);
-                }
+                if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
             renderer.render(scene, camera);
         }
 
-        function createDecor() { 
-            // 裝飾物(如樹木)邏輯
-            const side = Math.random() > 0.5 ? 1 : -1;
-            const tree = new THREE.Mesh(
-                new THREE.BoxGeometry(2, 4, 2), 
-                new THREE.MeshPhongMaterial({ color: 0x228b22 })
-            );
-            tree.position.set(side * 12, 2, -120);
-            scene.add(tree);
-            decor.push(tree);
-            // 裝飾物回收
-            setTimeout(() => { scene.remove(tree); }, 10000);
-        }
+        function createDecor() { /* 樹木邏輯省略以維持精簡 */ }
 
         window.onload = init3D;
     </script>
