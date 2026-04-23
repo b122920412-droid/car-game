@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 終極方向修正版</title>
+    <title>亡命飆速 - 終極穩定版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -27,7 +27,7 @@
 <body>
     <div id="start-screen">
         <div class="title">亡命飆速</div>
-        <div class="warning-text">⚠️ 警報：攔截系統已啟動！逃離封鎖！</div>
+        <div class="warning-text">🚨 逃離警方的重重包圍！</div>
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -69,6 +69,7 @@
         let scene, camera, renderer, car, grassPlane, gameStarted = false, score = 0;
         let obstacles = [], decor = [], roadLines = [];
         let obsCarModels = {}; 
+        let policeLightR, policeLightB; 
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let currentSpeed = 1.6, hp = 100;
         let settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
@@ -126,12 +127,20 @@
                 const line2 = line.clone(); line2.position.x = 1.8; scene.add(line2); roadLines.push(line2);
             }
 
+            // 💡 加入警察爆閃燈
+            policeLightR = new THREE.PointLight(0xff0000, 0, 50);
+            policeLightB = new THREE.PointLight(0x0000ff, 0, 50);
+            scene.add(policeLightR, policeLightB);
+
             const loader = new THREE.GLTFLoader();
-            car = new THREE.Group(); scene.add(car);
+            car = new THREE.Group(); 
+            scene.add(car);
 
             loader.load('car.glb', (gltf) => { 
                 let model = gltf.scene;
                 model.scale.set(6, 6, 6); 
+                // 💡 針對影片中的紅車屁股朝前，強制轉 180 度 (Math.PI)
+                model.rotation.y = Math.PI; 
                 car.add(model); 
                 checkLoaded();
             });
@@ -171,8 +180,9 @@
                 carClone.rotation.y = 0; // 其他車正放
             }
             
-            carClone.position.set(lanes[Math.floor(Math.random() * 3)], 0, -100);
-            scene.add(carClone); obstacles.push(carClone);
+            carClone.position.set(lanes[Math.floor(Math.random() * 3)], 0, -120);
+            scene.add(carClone); 
+            obstacles.push(carClone);
         }
 
         function createDecor() {
@@ -182,7 +192,7 @@
             const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 2.5), new THREE.MeshPhongMaterial({color: 0x8B4513}));
             const foliage = new THREE.Mesh(new THREE.ConeGeometry(2.5, 6, 8), new THREE.MeshPhongMaterial({color: 0x228b22}));
             foliage.position.y = 4; tree.add(trunk, foliage);
-            tree.position.set(side * 14, 1, -120);
+            tree.position.set(side * 14, 1, -150);
             scene.add(tree); decor.push(tree);
         }
 
@@ -191,8 +201,16 @@
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
             
-            // 💡 這裡將主角車旋轉鎖定為 0，如果仍反著請改成 Math.PI
-            car.rotation.y = (targetX - car.position.x) * 0.1 + 0; 
+            // 💡 固定主角方向，並加上與載入時一致的 Math.PI
+            car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
+
+            // 💡 警察爆閃燈邏輯
+            let flash = Math.floor(Date.now() / 150) % 2;
+            policeLightR.intensity = (flash === 0) ? 25 : 0;
+            policeLightB.intensity = (flash === 1) ? 25 : 0;
+            // 讓燈光跟在主角後方
+            policeLightR.position.set(car.position.x - 3, 4, 20);
+            policeLightB.position.set(car.position.x + 3, 4, 20);
 
             roadLines.forEach(l => { l.position.z += currentSpeed; if(l.position.z > 40) l.position.z = -200; });
             decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); }});
@@ -203,7 +221,7 @@
                 const distX = Math.abs(car.position.x - obs.position.x);
                 if (distZ < 2.0 && distX < 1.2) {
                     document.getElementById('crashSound').play();
-                    gameStarted = false; setTimeout(() => { alert("💥 任務失敗！得分: " + score); location.reload(); }, 100);
+                    gameStarted = false; setTimeout(() => { alert("💥 被逮捕！得分: " + score); location.reload(); }, 100);
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
