@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 路燈強制回歸版</title>
+    <title>亡命飆速 - 路燈絕對顯示終極版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -68,7 +68,7 @@
     <script>
         let scene, camera, renderer, car, grassPlane, gameStarted = false, score = 0;
         let obstacles = [], decor = [];
-        let obsCarModels = {}, streetLightModel = null, snowmanModel = null;
+        let obsCarModels = {}, streetLightPool = [], snowmanModel = null;
         let decorPool = { 0: [], 1: [], 2: [], 3: [] };
         let policeLightR, policeLightB; 
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
@@ -103,8 +103,7 @@
                 }
             }, 100);
             setInterval(createObstacle, 1100 - (settings.diff * 100)); 
-            // 💡 縮短风景生成間隔
-            setInterval(createDecor, 350); 
+            setInterval(createDecor, 400); 
         }
 
         function init3D() {
@@ -117,7 +116,7 @@
             renderer.outputEncoding = THREE.sRGBEncoding;
             document.body.appendChild(renderer.domElement);
 
-            scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+            scene.add(new THREE.AmbientLight(0xffffff, 1.4));
             const sun = new THREE.DirectionalLight(0xffffff, 1.2);
             sun.position.set(10, 50, 10); scene.add(sun);
 
@@ -137,7 +136,8 @@
                 loader.load(f, (g) => { fixMat(g.scene); if(f==='car6.glb') g.scene.scale.set(1.8, 1.8, 1.8); else g.scene.scale.set(3.2, 3.2, 3.2); obsCarModels[f] = g.scene; checkLoaded(); });
             });
 
-            const unpack = (file, indices) => {
+            // 💡 修正樹木解包
+            const unpackTrees = (file, indices) => {
                 loader.load(file, (gltf) => {
                     gltf.scene.traverse(node => {
                         if (node.isMesh) {
@@ -150,21 +150,22 @@
                 });
             };
 
-            unpack('birch_trees_pack__ps1_low_poly.glb', [0, 1]);
-            unpack('pine_trees_pack__ps1_low_poly.glb', [2]);
-            unpack('snowy_pine_trees_pack__ps1_low_poly.glb', [3]);
+            unpackTrees('birch_trees_pack__ps1_low_poly.glb', [0, 1]);
+            unpackTrees('pine_trees_pack__ps1_low_poly.glb', [2]);
+            unpackTrees('snowy_pine_trees_pack__ps1_low_poly.glb', [3]);
             
-            // 💡 路燈載入邏輯：不再依賴 unpack，直接存入
+            // 💡 獨立加載路燈，直接存入 streetLightPool
             loader.load('Street_Light.glb', (g) => { 
-                streetLightModel = g.scene; 
-                fixMat(streetLightModel); 
+                g.scene.traverse(node => {
+                    if(node.isMesh) {
+                        const m = node.clone();
+                        fixMat(m);
+                        streetLightPool.push(m);
+                    }
+                });
                 checkLoaded(); 
             });
-            loader.load('Snowman.glb', (g) => { 
-                snowmanModel = g.scene; 
-                fixMat(snowmanModel); 
-                checkLoaded(); 
-            });
+            loader.load('Snowman.glb', (g) => { fixMat(g.scene); snowmanModel = g.scene; checkLoaded(); });
 
             camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
         }
@@ -189,23 +190,22 @@
             let item = null;
             const rand = Math.random();
 
-            // 💡 路燈優先生成邏輯：強制出現權重
-            if (rand < 0.35 && streetLightModel) {
-                item = streetLightModel.clone();
-                // 💡 暴力放大比例到 15.0，確保這次絕對能看到！
-                item.scale.set(15.0, 15.0, 15.0); 
+            // 💡 強制路燈生成機率 35%
+            if (rand < 0.35 && streetLightPool.length > 0) {
+                item = streetLightPool[Math.floor(Math.random() * streetLightPool.length)].clone();
+                item.scale.set(8.0, 8.0, 8.0); // 💡 加大比例確保看得見
                 item.rotation.y = (side > 0) ? 0 : Math.PI;
             } else if (idx === 3 && rand < 0.5 && snowmanModel) {
                 item = snowmanModel.clone();
-                item.scale.set(2.0, 2.0, 2.0);
+                item.scale.set(1.5, 1.5, 1.5);
             } else if (decorPool[idx].length > 0) {
                 item = decorPool[idx][Math.floor(Math.random() * decorPool[idx].length)].clone();
-                item.scale.set(0.18, 0.18, 0.18);
+                item.scale.set(0.2, 0.2, 0.2); // 💡 樹木比例修正
             }
             
             if (item) {
-                // 💡 座標修正：x 座標拉近到 9 ~ 11，這是路燈最該出現的位置
-                item.position.set(side * (Math.random() * 2 + 9), 0, -220);
+                // 💡 位置靠近馬路邊緣
+                item.position.set(side * 10, 0, -200); 
                 scene.add(item); decor.push(item);
             }
         }
@@ -219,10 +219,10 @@
             car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
 
             let flash = Math.floor(Date.now() / 150) % 2;
-            policeLightR.intensity = flash === 0 ? 150 : 0;
-            policeLightB.intensity = flash === 1 ? 150 : 0;
-            policeLightR.position.set(car.position.x - 0.7, 4.5, car.position.z);
-            policeLightB.position.set(car.position.x + 0.7, 4.5, car.position.z);
+            policeLightR.intensity = flash === 0 ? 100 : 0;
+            policeLightB.intensity = flash === 1 ? 100 : 0;
+            policeLightR.position.set(car.position.x - 0.7, 4.4, car.position.z);
+            policeLightB.position.set(car.position.x + 0.7, 4.4, car.position.z);
 
             decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); }});
             obstacles.forEach((obs, i) => {
@@ -239,7 +239,7 @@
             renderer.render(scene, camera);
         }
 
-        function endGame() { gameStarted = false; setTimeout(() => { alert("💥 任務結束！得分: " + score); location.reload(); }, 100); }
+        function endGame() { gameStarted = false; setTimeout(() => { alert("💥 任務結束！最終得分: " + score); location.reload(); }, 100); }
 
         function updateSeasons() {
             const idx = Math.floor(score / 200) % 4;
