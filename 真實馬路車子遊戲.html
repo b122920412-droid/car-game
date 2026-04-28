@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 路燈絕對顯示版</title>
+    <title>亡命飆速 - 路燈強制回歸版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -67,7 +67,7 @@
 
     <script>
         let scene, camera, renderer, car, grassPlane, gameStarted = false, score = 0;
-        let obstacles = [], decor = [], roadLines = [];
+        let obstacles = [], decor = [];
         let obsCarModels = {}, streetLightModel = null, snowmanModel = null;
         let decorPool = { 0: [], 1: [], 2: [], 3: [] };
         let policeLightR, policeLightB; 
@@ -103,21 +103,22 @@
                 }
             }, 100);
             setInterval(createObstacle, 1100 - (settings.diff * 100)); 
-            setInterval(createDecor, 400); 
+            // 💡 縮短风景生成間隔
+            setInterval(createDecor, 350); 
         }
 
         function init3D() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87CEEB);
-            scene.fog = new THREE.Fog(0x87CEEB, 40, 180);
+            scene.fog = new THREE.Fog(0x87CEEB, 40, 200);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.outputEncoding = THREE.sRGBEncoding;
             document.body.appendChild(renderer.domElement);
 
-            scene.add(new THREE.AmbientLight(0xffffff, 1.4));
-            const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+            scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+            const sun = new THREE.DirectionalLight(0xffffff, 1.2);
             sun.position.set(10, 50, 10); scene.add(sun);
 
             const road = new THREE.Mesh(new THREE.PlaneGeometry(22, 2000), new THREE.MeshPhongMaterial({ color: 0x333333 }));
@@ -130,7 +131,7 @@
             scene.add(policeLightR, policeLightB);
 
             const loader = new THREE.GLTFLoader();
-            loader.load('car.glb', (gltf) => { car = gltf.scene; car.scale.set(4.5, 4.5, 4.5); scene.add(car); car.position.z = 15; checkLoaded(); });
+            loader.load('car.glb', (gltf) => { car = gltf.scene; fixMat(car); car.scale.set(4.5, 4.5, 4.5); scene.add(car); car.position.z = 15; checkLoaded(); });
 
             ['car1.glb','car2.glb','car3.glb','car4.glb','car5.glb','car6.glb'].forEach(f => {
                 loader.load(f, (g) => { fixMat(g.scene); if(f==='car6.glb') g.scene.scale.set(1.8, 1.8, 1.8); else g.scene.scale.set(3.2, 3.2, 3.2); obsCarModels[f] = g.scene; checkLoaded(); });
@@ -153,18 +154,15 @@
             unpack('pine_trees_pack__ps1_low_poly.glb', [2]);
             unpack('snowy_pine_trees_pack__ps1_low_poly.glb', [3]);
             
-            // 💡 路燈與雪人：獨立載入並確保存入全域變數
+            // 💡 路燈載入邏輯：不再依賴 unpack，直接存入
             loader.load('Street_Light.glb', (g) => { 
-                const model = g.scene;
-                fixMat(model);
-                streetLightModel = model;
-                console.log("Street Light Loaded!"); // 偵錯用
+                streetLightModel = g.scene; 
+                fixMat(streetLightModel); 
                 checkLoaded(); 
             });
             loader.load('Snowman.glb', (g) => { 
-                const model = g.scene;
-                fixMat(model);
-                snowmanModel = model;
+                snowmanModel = g.scene; 
+                fixMat(snowmanModel); 
                 checkLoaded(); 
             });
 
@@ -191,23 +189,23 @@
             let item = null;
             const rand = Math.random();
 
-            // 💡 暴力提升路燈機率並檢查模型是否存在
-            if (rand < 0.4 && streetLightModel) {
+            // 💡 路燈優先生成邏輯：強制出現權重
+            if (rand < 0.35 && streetLightModel) {
                 item = streetLightModel.clone();
-                item.scale.set(6.0, 6.0, 6.0); // 💡 路燈比例加大
+                // 💡 暴力放大比例到 15.0，確保這次絕對能看到！
+                item.scale.set(15.0, 15.0, 15.0); 
                 item.rotation.y = (side > 0) ? 0 : Math.PI;
             } else if (idx === 3 && rand < 0.5 && snowmanModel) {
                 item = snowmanModel.clone();
-                item.scale.set(1.5, 1.5, 1.5);
+                item.scale.set(2.0, 2.0, 2.0);
             } else if (decorPool[idx].length > 0) {
-                const randomItem = decorPool[idx][Math.floor(Math.random() * decorPool[idx].length)];
-                item = randomItem.clone();
-                item.scale.set(0.15, 0.15, 0.15);
+                item = decorPool[idx][Math.floor(Math.random() * decorPool[idx].length)].clone();
+                item.scale.set(0.18, 0.18, 0.18);
             }
             
             if (item) {
-                // 💡 座標大幅拉近到馬路邊邊 (x: 8.5 ~ 10.5)
-                item.position.set(side * (Math.random() * 2 + 8.5), 0, -200);
+                // 💡 座標修正：x 座標拉近到 9 ~ 11，這是路燈最該出現的位置
+                item.position.set(side * (Math.random() * 2 + 9), 0, -220);
                 scene.add(item); decor.push(item);
             }
         }
@@ -221,10 +219,10 @@
             car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
 
             let flash = Math.floor(Date.now() / 150) % 2;
-            policeLightR.intensity = flash === 0 ? 100 : 0;
-            policeLightB.intensity = flash === 1 ? 100 : 0;
-            policeLightR.position.set(car.position.x - 0.7, 4.4, car.position.z);
-            policeLightB.position.set(car.position.x + 0.7, 4.4, car.position.z);
+            policeLightR.intensity = flash === 0 ? 150 : 0;
+            policeLightB.intensity = flash === 1 ? 150 : 0;
+            policeLightR.position.set(car.position.x - 0.7, 4.5, car.position.z);
+            policeLightB.position.set(car.position.x + 0.7, 4.5, car.position.z);
 
             decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); }});
             obstacles.forEach((obs, i) => {
