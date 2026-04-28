@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 比例徹底修正版</title>
+    <title>亡命飆速 - 視覺生態最終校準版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -30,7 +30,7 @@
 
     <div id="start-screen">
         <div class="title">亡命飆速</div>
-        <div class="warning-text">🚨 比例校正版！遠離進擊的巨樹！</div>
+        <div class="warning-text">🚨 系統最終校準！視覺大進化！</div>
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -70,7 +70,7 @@
         let obstacles = [], decor = [], roadLines = [];
         let obsCarModels = {}, streetLightModel, snowmanModel;
         let seasonTrees = { 0: [], 1: [], 2: [], 3: [] };
-        let policeLightR, policeLightB; 
+        let policeLightR, policeLightB, visualLightBar; 
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let currentSpeed = 1.0, hp = 100;
         let settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
@@ -103,7 +103,7 @@
                 }
             }, 100);
             setInterval(createObstacle, 1100 - (settings.diff * 100)); 
-            setInterval(createDecor, 400);
+            setInterval(createDecor, 450);
         }
 
         function init3D() {
@@ -116,7 +116,7 @@
             renderer.outputEncoding = THREE.sRGBEncoding;
             document.body.appendChild(renderer.domElement);
 
-            scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+            scene.add(new THREE.AmbientLight(0xffffff, 1.4));
             const sun = new THREE.DirectionalLight(0xffffff, 1.0);
             sun.position.set(10, 50, 10); scene.add(sun);
 
@@ -125,10 +125,14 @@
             grassPlane = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshPhongMaterial({ color: 0x7cfc00 }));
             grassPlane.rotation.x = -Math.PI / 2; grassPlane.position.y = -0.15; scene.add(grassPlane);
 
-            // 💡 警燈：強度加大至 5000
-            policeLightR = new THREE.PointLight(0xff0000, 0, 100);
-            policeLightB = new THREE.PointLight(0x0000ff, 0, 100);
-            scene.add(policeLightR, policeLightB);
+            // 💡 實體警燈條 (Visual Light Bar)
+            const lightBarGeo = new THREE.BoxGeometry(1.2, 0.2, 0.3);
+            const lightBarMat = new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0x000000 });
+            visualLightBar = new THREE.Mesh(lightBarGeo, lightBarMat);
+            
+            policeLightR = new THREE.PointLight(0xff0000, 0, 80);
+            policeLightB = new THREE.PointLight(0x0000ff, 0, 80);
+            scene.add(policeLightR, policeLightB, visualLightBar);
 
             const loader = new THREE.GLTFLoader();
             loader.load('car.glb', (gltf) => { car = gltf.scene; fixMat(car); car.scale.set(4.5, 4.5, 4.5); scene.add(car); car.position.z = 15; checkLoaded(); });
@@ -167,22 +171,23 @@
             let item;
             
             const rand = Math.random();
-            if (rand < 0.15 && streetLightModel) {
+            // 💡 路燈比例調整為 10.0，且提高機率
+            if (rand < 0.2 && streetLightModel) {
                 item = streetLightModel.clone();
-                item.scale.set(1.5, 1.5, 1.5);
+                item.scale.set(10.0, 10.0, 10.0);
                 item.rotation.y = (side > 0) ? 0 : Math.PI;
-            } else if (idx === 3 && rand < 0.3 && snowmanModel) {
+            } else if (idx === 3 && rand < 0.35 && snowmanModel) {
                 item = snowmanModel.clone();
-                item.scale.set(0.8, 0.8, 0.8);
+                item.scale.set(5.0, 5.0, 5.0);
             } else if (seasonTrees[idx].length > 0) {
                 item = seasonTrees[idx][Math.floor(Math.random() * seasonTrees[idx].length)].clone();
-                // 💡 終極修正：比例降到 0.05
-                item.scale.set(0.05, 0.05, 0.05);
+                // 💡 樹木比例從 0.05 回升至 4.0
+                item.scale.set(4.0, 4.0, 4.0);
             }
             
             if (item) {
-                // 💡 位置修正：遠離馬路 (15~25)
-                item.position.set(side * (Math.random() * 10 + 15), 0, -200);
+                // 💡 距離座標微調：x: 8.5 ~ 11.5 之間，絕對看得到
+                item.position.set(side * (Math.random() * 3 + 8.5), 0, -200);
                 scene.add(item); decor.push(item);
             }
         }
@@ -195,12 +200,15 @@
             car.position.x += (targetX - car.position.x) * 0.15;
             car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
 
-            // 💡 警燈爆閃強化
+            // 💡 警燈視覺同步
             let flash = Math.floor(Date.now() / 150) % 2;
-            policeLightR.intensity = flash === 0 ? 3000 : 0;
-            policeLightB.intensity = flash === 1 ? 3000 : 0;
-            policeLightR.position.set(car.position.x - 1.2, 5, car.position.z);
-            policeLightB.position.set(car.position.x + 1.2, 5, car.position.z);
+            policeLightR.intensity = flash === 0 ? 5000 : 0;
+            policeLightB.intensity = flash === 1 ? 5000 : 0;
+            policeLightR.position.set(car.position.x - 0.5, 4.2, car.position.z);
+            policeLightB.position.set(car.position.x + 0.5, 4.2, car.position.z);
+            visualLightBar.position.set(car.position.x, 4.1, car.position.z);
+            visualLightBar.material.emissive.setHex(flash === 0 ? 0xff0000 : 0x0000ff);
+            visualLightBar.material.emissiveIntensity = 2.0;
 
             decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); }});
             obstacles.forEach((obs, i) => {
@@ -217,7 +225,7 @@
             renderer.render(scene, camera);
         }
 
-        function endGame() { gameStarted = false; setTimeout(() => { alert("💥 任務結束！得分: " + score); location.reload(); }, 100); }
+        function endGame() { gameStarted = false; setTimeout(() => { alert("💥 任務結束！最終得分: " + score); location.reload(); }, 100); }
 
         function updateSeasons() {
             const idx = Math.floor(score / 200) % 4;
