@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 生態豐富校正版</title>
+    <title>亡命飆速 - 生態與路燈最終修正版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -30,7 +30,7 @@
 
     <div id="start-screen">
         <div class="title">亡命飆速</div>
-        <div class="warning-text">🚨 物件多樣性修復完成！</div>
+        <div class="warning-text">🚨 系統精確校準！路燈樹木就緒！</div>
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -69,7 +69,6 @@
         let scene, camera, renderer, car, grassPlane, gameStarted = false, score = 0;
         let obstacles = [], decor = [], roadLines = [];
         let obsCarModels = {}, streetLightModel, snowmanModel;
-        // 季節物件池：0:春, 1:夏, 2:秋, 3:冬
         let decorPool = { 0: [], 1: [], 2: [], 3: [] };
         let policeLightR, policeLightB, lightBarMesh; 
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
@@ -104,7 +103,7 @@
                 }
             }, 100);
             setInterval(createObstacle, 1100 - (settings.diff * 100)); 
-            setInterval(createDecor, 400);
+            setInterval(createDecor, 400); // 增加風景生成頻率
         }
 
         function init3D() {
@@ -117,16 +116,15 @@
             renderer.outputEncoding = THREE.sRGBEncoding;
             document.body.appendChild(renderer.domElement);
 
-            scene.add(new THREE.AmbientLight(0xffffff, 1.3));
-            const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+            scene.add(new THREE.AmbientLight(0xffffff, 1.4));
+            const sun = new THREE.DirectionalLight(0xffffff, 1.0);
             sun.position.set(10, 50, 10); scene.add(sun);
 
-            const road = new THREE.Mesh(new THREE.PlaneGeometry(22, 2000), new THREE.MeshPhongMaterial({ color: 0x222222 }));
+            const road = new THREE.Mesh(new THREE.PlaneGeometry(22, 2000), new THREE.MeshPhongMaterial({ color: 0x333333 }));
             road.rotation.x = -Math.PI / 2; scene.add(road);
             grassPlane = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshPhongMaterial({ color: 0x7cfc00 }));
             grassPlane.rotation.x = -Math.PI / 2; grassPlane.position.y = -0.15; scene.add(grassPlane);
 
-            // 💡 實體燈條
             const lightBarGeo = new THREE.BoxGeometry(1.2, 0.15, 0.25);
             const lightBarMat = new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0x000000 });
             lightBarMesh = new THREE.Mesh(lightBarGeo, lightBarMat);
@@ -141,7 +139,6 @@
                 loader.load(f, (g) => { fixMat(g.scene); if(f==='car6.glb') g.scene.scale.set(1.8, 1.8, 1.8); else g.scene.scale.set(3.2, 3.2, 3.2); obsCarModels[f] = g.scene; checkLoaded(); });
             });
 
-            // 💡 徹底抓取所有子物件模型
             const unpack = (file, indices) => {
                 loader.load(file, (gltf) => {
                     gltf.scene.traverse(node => {
@@ -155,10 +152,9 @@
                 });
             };
 
-            unpack('birch_trees_pack__ps1_low_poly.glb', [0, 1]); // 春夏
+            unpack('birch_trees_pack__ps1_low_poly.glb', [0, 1]); // 春、夏
             unpack('pine_trees_pack__ps1_low_poly.glb', [2]);     // 秋
             unpack('snowy_pine_trees_pack__ps1_low_poly.glb', [3]); // 冬
-            
             loader.load('Snowman.glb', (g) => { fixMat(g.scene); snowmanModel = g.scene; checkLoaded(); });
             loader.load('Street_Light.glb', (g) => { fixMat(g.scene); streetLightModel = g.scene; checkLoaded(); });
 
@@ -183,30 +179,23 @@
             const idx = Math.floor(score / 200) % 4;
             const side = Math.random() > 0.5 ? 1 : -1;
             let item;
-            
             const rand = Math.random();
-            // 💡 路燈：固定 15% 機率出現，不再被樹木擠掉
-            if (rand < 0.15 && streetLightModel) {
+
+            // 💡 路燈：固定 20% 機率
+            if (rand < 0.2 && streetLightModel) {
                 item = streetLightModel.clone();
                 item.scale.set(3.5, 3.5, 3.5);
                 item.rotation.y = (side > 0) ? 0 : Math.PI;
-            } 
-            // 💡 冬天雪人：15% 機率
-            else if (idx === 3 && rand < 0.3 && snowmanModel) {
+            } else if (idx === 3 && rand < 0.35 && snowmanModel) {
                 item = snowmanModel.clone();
                 item.scale.set(1.5, 1.5, 1.5);
-            } 
-            // 💡 隨機挑選該季節的模型池中的不同樹木
-            else if (decorPool[idx].length > 0) {
-                const randomItem = decorPool[idx][Math.floor(Math.random() * decorPool[idx].length)];
-                item = randomItem.clone();
-                // 針對樺樹/松樹調整比例，如果模型包太大則縮小
+            } else if (decorPool[idx].length > 0) {
+                item = decorPool[idx][Math.floor(Math.random() * decorPool[idx].length)].clone();
                 item.scale.set(0.12, 0.12, 0.12);
             }
             
             if (item) {
-                // 調整位置讓它在路邊清晰可見
-                item.position.set(side * (Math.random() * 6 + 13), 0, -200);
+                item.position.set(side * (Math.random() * 5 + 11), 0, -200); // 座標設定在馬路旁邊
                 scene.add(item); decor.push(item);
             }
         }
@@ -219,7 +208,6 @@
             car.position.x += (targetX - car.position.x) * 0.15;
             car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
 
-            // 燈光與實體燈條同步
             let flash = Math.floor(Date.now() / 150) % 2;
             policeLightR.intensity = flash === 0 ? 50 : 0;
             policeLightB.intensity = flash === 1 ? 50 : 0;
@@ -227,7 +215,7 @@
             policeLightB.position.set(car.position.x + 0.8, 4.2, car.position.z);
             lightBarMesh.position.set(car.position.x, 4.15, car.position.z);
             lightBarMesh.material.emissive.setHex(flash === 0 ? 0xff0000 : 0x0000ff);
-            lightBarMesh.material.emissiveIntensity = 1.0;
+            lightBarMesh.material.emissiveIntensity = 1.2;
 
             decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); }});
             obstacles.forEach((obs, i) => {
@@ -262,7 +250,7 @@
             const r = () => { if (currentLaneIndex < 2) { currentLaneIndex++; targetX = lanes[currentLaneIndex]; } };
             window.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') l(); if (e.key === 'ArrowRight') r(); });
             window.addEventListener('touchstart', (e) => { if (!gameStarted || settings.ctrl !== 'touch') return; if (e.touches[0].clientX < window.innerWidth / 2) l(); else r(); });
-            window.addEventListener('deviceorientation', (e) => { if (!gameStarted || settings.ctrl !== 'tilt') return; const tilt = e.gamma; if (tilt < -10) currentLaneIndex = 0; else if (tilt > 10) currentLaneIndex = 2; else currentLaneIndex = 1; targetX = lanes[currentLaneIndex]; });
+            window.addEventListener('deviceorientation', (e) => { if (!gameStarted || settings.ctrl !== 'tilt') return; const t = e.gamma; if (t < -10) currentLaneIndex = 0; else if (t > 10) currentLaneIndex = 2; else currentLaneIndex = 1; targetX = lanes[currentLaneIndex]; });
         }
         window.onload = init3D;
     </script>
