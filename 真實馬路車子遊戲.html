@@ -3,13 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 生態與路燈最終修正版</title>
+    <title>亡命飆速 - 最終視覺純化版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
         .title { font-size: 42px; font-weight: 900; letter-spacing: 2px; color: #fff; text-shadow: 0 0 20px #007bff; margin-bottom: 10px; }
-        .warning-text { color: #ff4444; font-weight: bold; margin-bottom: 15px; letter-spacing: 2px; animation: blink 1.5s infinite; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         .setting-group { margin: 8px 0; display: flex; flex-direction: column; align-items: center; background: rgba(255,255,255,0.08); padding: 12px; border-radius: 15px; width: 340px; border: 1px solid rgba(255,255,255,0.1); }
         .setting-label { font-size: 14px; color: #00d2ff; margin-bottom: 8px; font-weight: bold; }
         .option-group { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
@@ -30,7 +28,6 @@
 
     <div id="start-screen">
         <div class="title">亡命飆速</div>
-        <div class="warning-text">🚨 系統精確校準！路燈樹木就緒！</div>
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -70,7 +67,7 @@
         let obstacles = [], decor = [], roadLines = [];
         let obsCarModels = {}, streetLightModel, snowmanModel;
         let decorPool = { 0: [], 1: [], 2: [], 3: [] };
-        let policeLightR, policeLightB, lightBarMesh; 
+        let policeLightR, policeLightB; 
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let currentSpeed = 1.0, hp = 100;
         let settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
@@ -103,7 +100,7 @@
                 }
             }, 100);
             setInterval(createObstacle, 1100 - (settings.diff * 100)); 
-            setInterval(createDecor, 400); // 增加風景生成頻率
+            setInterval(createDecor, 400);
         }
 
         function init3D() {
@@ -125,12 +122,10 @@
             grassPlane = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshPhongMaterial({ color: 0x7cfc00 }));
             grassPlane.rotation.x = -Math.PI / 2; grassPlane.position.y = -0.15; scene.add(grassPlane);
 
-            const lightBarGeo = new THREE.BoxGeometry(1.2, 0.15, 0.25);
-            const lightBarMat = new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0x000000 });
-            lightBarMesh = new THREE.Mesh(lightBarGeo, lightBarMat);
-            policeLightR = new THREE.PointLight(0xff0000, 0, 50);
-            policeLightB = new THREE.PointLight(0x0000ff, 0, 50);
-            scene.add(policeLightR, policeLightB, lightBarMesh);
+            // 💡 只有光源，移除所有實體燈條（避免那一橫）
+            policeLightR = new THREE.PointLight(0xff0000, 0, 40);
+            policeLightB = new THREE.PointLight(0x0000ff, 0, 40);
+            scene.add(policeLightR, policeLightB);
 
             const loader = new THREE.GLTFLoader();
             loader.load('car.glb', (gltf) => { car = gltf.scene; fixMat(car); car.scale.set(4.5, 4.5, 4.5); scene.add(car); car.position.z = 15; checkLoaded(); });
@@ -139,6 +134,7 @@
                 loader.load(f, (g) => { fixMat(g.scene); if(f==='car6.glb') g.scene.scale.set(1.8, 1.8, 1.8); else g.scene.scale.set(3.2, 3.2, 3.2); obsCarModels[f] = g.scene; checkLoaded(); });
             });
 
+            // 解包樹木邏輯
             const unpack = (file, indices) => {
                 loader.load(file, (gltf) => {
                     gltf.scene.traverse(node => {
@@ -152,11 +148,17 @@
                 });
             };
 
-            unpack('birch_trees_pack__ps1_low_poly.glb', [0, 1]); // 春、夏
-            unpack('pine_trees_pack__ps1_low_poly.glb', [2]);     // 秋
-            unpack('snowy_pine_trees_pack__ps1_low_poly.glb', [3]); // 冬
+            unpack('birch_trees_pack__ps1_low_poly.glb', [0, 1]);
+            unpack('pine_trees_pack__ps1_low_poly.glb', [2]);
+            unpack('snowy_pine_trees_pack__ps1_low_poly.glb', [3]);
+            
+            // 💡 獨立載入路燈
+            loader.load('Street_Light.glb', (g) => { 
+                streetLightModel = g.scene; 
+                fixMat(streetLightModel); 
+                checkLoaded(); 
+            });
             loader.load('Snowman.glb', (g) => { fixMat(g.scene); snowmanModel = g.scene; checkLoaded(); });
-            loader.load('Street_Light.glb', (g) => { fixMat(g.scene); streetLightModel = g.scene; checkLoaded(); });
 
             camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
         }
@@ -181,12 +183,12 @@
             let item;
             const rand = Math.random();
 
-            // 💡 路燈：固定 20% 機率
-            if (rand < 0.2 && streetLightModel) {
+            // 💡 提高路燈出現機率（25%）
+            if (rand < 0.25 && streetLightModel) {
                 item = streetLightModel.clone();
-                item.scale.set(3.5, 3.5, 3.5);
+                item.scale.set(4.0, 4.0, 4.0);
                 item.rotation.y = (side > 0) ? 0 : Math.PI;
-            } else if (idx === 3 && rand < 0.35 && snowmanModel) {
+            } else if (idx === 3 && rand < 0.4 && snowmanModel) {
                 item = snowmanModel.clone();
                 item.scale.set(1.5, 1.5, 1.5);
             } else if (decorPool[idx].length > 0) {
@@ -195,7 +197,7 @@
             }
             
             if (item) {
-                item.position.set(side * (Math.random() * 5 + 11), 0, -200); // 座標設定在馬路旁邊
+                item.position.set(side * (Math.random() * 5 + 12), 0, -200);
                 scene.add(item); decor.push(item);
             }
         }
@@ -208,14 +210,12 @@
             car.position.x += (targetX - car.position.x) * 0.15;
             car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
 
+            // 警燈閃爍
             let flash = Math.floor(Date.now() / 150) % 2;
-            policeLightR.intensity = flash === 0 ? 50 : 0;
-            policeLightB.intensity = flash === 1 ? 50 : 0;
-            policeLightR.position.set(car.position.x - 0.8, 4.2, car.position.z);
-            policeLightB.position.set(car.position.x + 0.8, 4.2, car.position.z);
-            lightBarMesh.position.set(car.position.x, 4.15, car.position.z);
-            lightBarMesh.material.emissive.setHex(flash === 0 ? 0xff0000 : 0x0000ff);
-            lightBarMesh.material.emissiveIntensity = 1.2;
+            policeLightR.intensity = flash === 0 ? 100 : 0;
+            policeLightB.intensity = flash === 1 ? 100 : 0;
+            policeLightR.position.set(car.position.x - 0.8, 4.5, car.position.z);
+            policeLightB.position.set(car.position.x + 0.8, 4.5, car.position.z);
 
             decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); }});
             obstacles.forEach((obs, i) => {
