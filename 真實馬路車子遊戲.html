@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 比例精確校正版</title>
+    <title>亡命飆速 - 生態豐富校正版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -30,7 +30,7 @@
 
     <div id="start-screen">
         <div class="title">亡命飆速</div>
-        <div class="warning-text">🚨 比例與路燈徹底修復版！</div>
+        <div class="warning-text">🚨 物件多樣性修復完成！</div>
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -68,13 +68,15 @@
     <script>
         let scene, camera, renderer, car, grassPlane, gameStarted = false, score = 0;
         let obstacles = [], decor = [], roadLines = [];
-        let obsCarModels = {}, decorModels = { 0: [], 1: [], 2: [], 3: [] }, streetLightModel, snowmanModel;
-        let policeLightR, policeLightB; 
+        let obsCarModels = {}, streetLightModel, snowmanModel;
+        // 季節物件池：0:春, 1:夏, 2:秋, 3:冬
+        let decorPool = { 0: [], 1: [], 2: [], 3: [] };
+        let policeLightR, policeLightB, lightBarMesh; 
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let currentSpeed = 1.0, hp = 100;
         let settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
         let loadedCount = 0;
-        const totalToLoad = 12; 
+        const totalToLoad = 12;
 
         function setSetting(type, val) {
             settings[type] = val;
@@ -116,7 +118,7 @@
             document.body.appendChild(renderer.domElement);
 
             scene.add(new THREE.AmbientLight(0xffffff, 1.3));
-            const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+            const sun = new THREE.DirectionalLight(0xffffff, 0.9);
             sun.position.set(10, 50, 10); scene.add(sun);
 
             const road = new THREE.Mesh(new THREE.PlaneGeometry(22, 2000), new THREE.MeshPhongMaterial({ color: 0x222222 }));
@@ -124,41 +126,46 @@
             grassPlane = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshPhongMaterial({ color: 0x7cfc00 }));
             grassPlane.rotation.x = -Math.PI / 2; grassPlane.position.y = -0.15; scene.add(grassPlane);
 
-            // 💡 僅保留點光源閃爍（移除那個擋住視野的紅色橫線）
-            policeLightR = new THREE.PointLight(0xff0000, 0, 60);
-            policeLightB = new THREE.PointLight(0x0000ff, 0, 60);
-            scene.add(policeLightR, policeLightB);
+            // 💡 實體燈條
+            const lightBarGeo = new THREE.BoxGeometry(1.2, 0.15, 0.25);
+            const lightBarMat = new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0x000000 });
+            lightBarMesh = new THREE.Mesh(lightBarGeo, lightBarMat);
+            policeLightR = new THREE.PointLight(0xff0000, 0, 50);
+            policeLightB = new THREE.PointLight(0x0000ff, 0, 50);
+            scene.add(policeLightR, policeLightB, lightBarMesh);
 
             const loader = new THREE.GLTFLoader();
-            loader.load('car.glb', (gltf) => { 
-                car = gltf.scene; car.scale.set(4.5, 4.5, 4.5); 
-                scene.add(car); car.position.z = 15; checkLoaded(); 
-            });
+            loader.load('car.glb', (gltf) => { car = gltf.scene; fixMat(car); car.scale.set(4.5, 4.5, 4.5); scene.add(car); car.position.z = 15; checkLoaded(); });
 
             ['car1.glb','car2.glb','car3.glb','car4.glb','car5.glb','car6.glb'].forEach(f => {
-                loader.load(f, (g) => { 
-                    if(f==='car6.glb') g.scene.scale.set(1.8, 1.8, 1.8); else g.scene.scale.set(3.2, 3.2, 3.2);
-                    obsCarModels[f] = g.scene; checkLoaded(); 
-                }, undefined, () => checkLoaded());
+                loader.load(f, (g) => { fixMat(g.scene); if(f==='car6.glb') g.scene.scale.set(1.8, 1.8, 1.8); else g.scene.scale.set(3.2, 3.2, 3.2); obsCarModels[f] = g.scene; checkLoaded(); });
             });
 
-            // 🌳 四季裝飾個別標記比例
-            const unpack = (g, list, type) => { 
-                g.scene.children.forEach(c => { 
-                    const v = c.clone(); 
-                    v.userData.type = type; // 標記模型類型
-                    list.push(v); 
-                }); 
+            // 💡 徹底抓取所有子物件模型
+            const unpack = (file, indices) => {
+                loader.load(file, (gltf) => {
+                    gltf.scene.traverse(node => {
+                        if (node.isMesh) {
+                            const clone = node.clone();
+                            fixMat(clone);
+                            indices.forEach(idx => decorPool[idx].push(clone));
+                        }
+                    });
+                    checkLoaded();
+                });
             };
-            loader.load('birch_trees_pack__ps1_low_poly.glb', (g) => { unpack(g, decorModels[0], 'birch'); unpack(g, decorModels[1], 'birch'); checkLoaded(); });
-            loader.load('pine_trees_pack__ps1_low_poly.glb', (g) => { unpack(g, decorModels[2], 'pine'); checkLoaded(); });
-            loader.load('snowy_pine_trees_pack__ps1_low_poly.glb', (g) => { unpack(g, decorModels[3], 'pine'); checkLoaded(); });
-            loader.load('Snowman.glb', (g) => { snowmanModel = g.scene; checkLoaded(); });
-            loader.load('Street_Light.glb', (g) => { streetLightModel = g.scene; checkLoaded(); });
+
+            unpack('birch_trees_pack__ps1_low_poly.glb', [0, 1]); // 春夏
+            unpack('pine_trees_pack__ps1_low_poly.glb', [2]);     // 秋
+            unpack('snowy_pine_trees_pack__ps1_low_poly.glb', [3]); // 冬
+            
+            loader.load('Snowman.glb', (g) => { fixMat(g.scene); snowmanModel = g.scene; checkLoaded(); });
+            loader.load('Street_Light.glb', (g) => { fixMat(g.scene); streetLightModel = g.scene; checkLoaded(); });
 
             camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
         }
 
+        function fixMat(m) { m.traverse(n => { if(n.isMesh) { n.material.transparent = false; n.material.opacity = 1; n.material.depthWrite = true; } }); }
         function checkLoaded() { loadedCount++; if(loadedCount >= totalToLoad) { document.getElementById('start-btn').disabled = false; document.getElementById('start-btn').innerText = "進入賽道"; } }
 
         function createObstacle() {
@@ -178,24 +185,28 @@
             let item;
             
             const rand = Math.random();
-            // 💡 路燈：比例調整為 2.5，確保不再消失
-            if (rand < 0.22 && streetLightModel) {
+            // 💡 路燈：固定 15% 機率出現，不再被樹木擠掉
+            if (rand < 0.15 && streetLightModel) {
                 item = streetLightModel.clone();
-                item.scale.set(2.5, 2.5, 2.5);
+                item.scale.set(3.5, 3.5, 3.5);
                 item.rotation.y = (side > 0) ? 0 : Math.PI;
-            } else if (idx === 3 && rand < 0.3 && snowmanModel) {
+            } 
+            // 💡 冬天雪人：15% 機率
+            else if (idx === 3 && rand < 0.3 && snowmanModel) {
                 item = snowmanModel.clone();
-                item.scale.set(0.6, 0.6, 0.6);
-            } else if (decorModels[idx].length > 0) {
-                item = decorModels[idx][Math.floor(Math.random() * decorModels[idx].length)].clone();
-                // 💡 樹木比例個別校正：樺樹 0.15，松樹 0.1
-                let s = (item.userData.type === 'birch') ? 0.15 : 0.1;
-                item.scale.set(s, s, s);
+                item.scale.set(1.5, 1.5, 1.5);
+            } 
+            // 💡 隨機挑選該季節的模型池中的不同樹木
+            else if (decorPool[idx].length > 0) {
+                const randomItem = decorPool[idx][Math.floor(Math.random() * decorPool[idx].length)];
+                item = randomItem.clone();
+                // 針對樺樹/松樹調整比例，如果模型包太大則縮小
+                item.scale.set(0.12, 0.12, 0.12);
             }
             
             if (item) {
-                // 💡 位置拉開：遠離馬路中心，放在外側 (13~20 之間)
-                item.position.set(side * (Math.random() * 7 + 13), 0, -200);
+                // 調整位置讓它在路邊清晰可見
+                item.position.set(side * (Math.random() * 6 + 13), 0, -200);
                 scene.add(item); decor.push(item);
             }
         }
@@ -208,12 +219,15 @@
             car.position.x += (targetX - car.position.x) * 0.15;
             car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
 
-            // 💡 警燈：同步到車頂高度 (4.5)，移除橫線 Mesh
+            // 燈光與實體燈條同步
             let flash = Math.floor(Date.now() / 150) % 2;
             policeLightR.intensity = flash === 0 ? 50 : 0;
             policeLightB.intensity = flash === 1 ? 50 : 0;
-            policeLightR.position.set(car.position.x - 1.0, 4.5, car.position.z);
-            policeLightB.position.set(car.position.x + 1.0, 4.5, car.position.z);
+            policeLightR.position.set(car.position.x - 0.8, 4.2, car.position.z);
+            policeLightB.position.set(car.position.x + 0.8, 4.2, car.position.z);
+            lightBarMesh.position.set(car.position.x, 4.15, car.position.z);
+            lightBarMesh.material.emissive.setHex(flash === 0 ? 0xff0000 : 0x0000ff);
+            lightBarMesh.material.emissiveIntensity = 1.0;
 
             decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); }});
             obstacles.forEach((obs, i) => {
@@ -248,7 +262,7 @@
             const r = () => { if (currentLaneIndex < 2) { currentLaneIndex++; targetX = lanes[currentLaneIndex]; } };
             window.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') l(); if (e.key === 'ArrowRight') r(); });
             window.addEventListener('touchstart', (e) => { if (!gameStarted || settings.ctrl !== 'touch') return; if (e.touches[0].clientX < window.innerWidth / 2) l(); else r(); });
-            window.addEventListener('deviceorientation', (e) => { if (!gameStarted || settings.ctrl !== 'tilt') return; const t = e.gamma; if (t < -10) currentLaneIndex = 0; else if (t > 10) currentLaneIndex = 2; else currentLaneIndex = 1; targetX = lanes[currentLaneIndex]; });
+            window.addEventListener('deviceorientation', (e) => { if (!gameStarted || settings.ctrl !== 'tilt') return; const tilt = e.gamma; if (tilt < -10) currentLaneIndex = 0; else if (tilt > 10) currentLaneIndex = 2; else currentLaneIndex = 1; targetX = lanes[currentLaneIndex]; });
         }
         window.onload = init3D;
     </script>
