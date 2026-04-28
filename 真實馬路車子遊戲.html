@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 路燈視覺強化版</title>
+    <title>亡命飆速 - 路燈絕對顯示終極版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -103,13 +103,13 @@
                 }
             }, 100);
             setInterval(createObstacle, 1100 - (settings.diff * 100)); 
-            setInterval(createDecor, 450); 
+            setInterval(createDecor, 400); 
         }
 
         function init3D() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87CEEB);
-            scene.fog = new THREE.Fog(0x87CEEB, 40, 200);
+            scene.fog = new THREE.Fog(0x87CEEB, 40, 180);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -130,7 +130,6 @@
             scene.add(policeLightR, policeLightB);
 
             const loader = new THREE.GLTFLoader();
-            // 載入主角
             loader.load('car.glb', (gltf) => { 
                 car = gltf.scene; 
                 car.traverse(n => { if(n.isMesh) { n.material.transparent = false; n.material.depthWrite = true; } });
@@ -138,7 +137,6 @@
                 scene.add(car); car.position.z = 15; checkLoaded(); 
             });
 
-            // 載入路人車
             ['car1.glb','car2.glb','car3.glb','car4.glb','car5.glb','car6.glb'].forEach(f => {
                 loader.load(f, (g) => { 
                     g.scene.traverse(n => { if(n.isMesh) { n.material.transparent = false; n.material.depthWrite = true; } });
@@ -147,7 +145,6 @@
                 }, undefined, () => checkLoaded());
             });
 
-            // 解包樹木
             const unpack = (file, indices) => {
                 loader.load(file, (gltf) => {
                     gltf.scene.traverse(node => {
@@ -165,15 +162,16 @@
             unpack('pine_trees_pack__ps1_low_poly.glb', [2]);
             unpack('snowy_pine_trees_pack__ps1_low_poly.glb', [3]);
             
-            // 💡 強化路燈載入：加入自發光材質
+            // 💡 路燈強制材質：亮銀色 + 黃光
             loader.load('Street_Light.glb', (gltf) => { 
                 gltf.scene.traverse(node => {
                     if(node.isMesh) {
                         const m = node.clone();
-                        m.material.transparent = false;
-                        // 讓燈泡部分在黑暗或遠處也能亮起來
-                        m.material.emissive = new THREE.Color(0xffffcc);
-                        m.material.emissiveIntensity = 0.5;
+                        m.material = new THREE.MeshPhongMaterial({ 
+                            color: 0xcccccc, // 亮銀色
+                            emissive: 0x555500, // 帶一點發光感
+                            emissiveIntensity: 0.5
+                        });
                         streetLightPool.push(m);
                     }
                 });
@@ -187,6 +185,7 @@
             camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
         }
 
+        function fixMat(m) { m.traverse(n => { if(n.isMesh) { n.material.transparent = false; n.material.opacity = 1; n.material.depthWrite = true; } }); }
         function checkLoaded() { loadedCount++; if(loadedCount >= totalToLoad) { document.getElementById('start-btn').disabled = false; document.getElementById('start-btn').innerText = "進入賽道"; } }
 
         function createObstacle() {
@@ -206,18 +205,17 @@
             let item = null;
             const rand = Math.random();
 
-            // 💡 提高路燈優先級與機率（35%）
+            // 💡 路燈出現機率調高至 35%，並強制加大
             if (rand < 0.35 && streetLightPool.length > 0) {
                 item = streetLightPool[Math.floor(Math.random() * streetLightPool.length)].clone();
-                item.scale.set(6.5, 6.5, 6.5); // 增加厚度與高度
+                item.scale.set(7.5, 7.5, 7.5); 
                 item.rotation.y = (side > 0) ? 0 : Math.PI;
             } else if (idx === 3 && rand < 0.5 && snowmanModel) {
                 item = snowmanModel.clone();
                 item.scale.set(1.5, 1.5, 1.5);
             } else if (decorPool[idx].length > 0) {
-                // 隨機選一棵當季的樹
                 item = decorPool[idx][Math.floor(Math.random() * decorPool[idx].length)].clone();
-                item.scale.set(0.18, 0.18, 0.18);
+                item.scale.set(0.2, 0.2, 0.2); 
             }
             
             if (item) {
