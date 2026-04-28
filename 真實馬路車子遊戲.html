@@ -3,21 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 視覺完整修正版</title>
+    <title>亡命飆速 - 視覺生態最終修正版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
         .title { font-size: 48px; font-weight: 900; letter-spacing: 4px; color: #fff; text-shadow: 0 0 20px #007bff; margin-bottom: 5px; }
         .warning-text { color: #ff4444; font-weight: bold; margin-bottom: 20px; letter-spacing: 2px; animation: blink 1.5s infinite; font-size: 18px; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        .setting-group { margin: 10px 0; display: flex; flex-direction: column; align-items: center; background: rgba(255,255,255,0.08); padding: 15px; border-radius: 20px; width: 320px; border: 1px solid rgba(255,255,255,0.1); }
-        .setting-label { font-size: 14px; color: #00d2ff; margin-bottom: 10px; font-weight: bold; }
+        .setting-group { margin: 10px 0; display: flex; flex-direction: column; align-items: center; background: rgba(255,255,255,0.08); padding: 12px; border-radius: 20px; width: 320px; border: 1px solid rgba(255,255,255,0.1); }
+        .setting-label { font-size: 14px; color: #00d2ff; margin-bottom: 8px; font-weight: bold; }
         .option-group { display: flex; gap: 10px; justify-content: center; }
         .opt-btn { padding: 10px 20px; border: 1px solid #007bff; background: transparent; color: white; border-radius: 50px; cursor: pointer; transition: 0.3s; font-size: 14px; }
         .opt-btn.active { background: #007bff; box-shadow: 0 0 15px #007bff; border-color: #00ffcc; }
-        .start-btn { padding: 18px 60px; font-size: 24px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; margin-top: 25px; box-shadow: 0 8px 25px rgba(0,123,255,0.5); transition: 0.3s; }
-        .start-btn:hover { transform: scale(1.05); }
-        .start-btn:disabled { background: #444; cursor: wait; opacity: 0.7; box-shadow: none; }
+        .start-btn { padding: 18px 60px; font-size: 24px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; margin-top: 25px; box-shadow: 0 8px 25px rgba(0,123,255,0.5); }
+        .start-btn:disabled { background: #444; cursor: wait; opacity: 0.7; }
         #ui-layer { position: absolute; top: 20px; left: 20px; right: 20px; pointer-events: none; z-index: 2000; }
         #scoreDisplay { font-size: 36px; color: #0f0; font-family: monospace; font-weight: bold; float: right; text-shadow: 0 0 15px #0f0; }
         #speedo { color: #fff; font-size: 20px; font-weight: bold; clear: both; float: right; margin-top: 5px; font-family: monospace; }
@@ -69,7 +68,7 @@
     <script>
         let scene, camera, renderer, car, grassPlane, gameStarted = false, score = 0;
         let obstacles = [], decor = [];
-        let obsCarModels = {}, streetLightPool = [], snowmanModel = null;
+        let obsCarModels = {}, streetLightModel = null, snowmanModel = null;
         let decorPool = { 0: [], 1: [], 2: [], 3: [] };
         let policeLightR, policeLightB; 
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
@@ -103,8 +102,8 @@
                     updateSeasons(); 
                 }
             }, 100);
-            setInterval(createObstacle, 1000 - (settings.diff * 100)); 
-            setInterval(createDecor, 400); 
+            setInterval(createObstacle, 1100 - (settings.diff * 100)); 
+            setInterval(createDecor, 450); 
         }
 
         function init3D() {
@@ -118,7 +117,7 @@
             document.body.appendChild(renderer.domElement);
 
             scene.add(new THREE.AmbientLight(0xffffff, 1.4));
-            const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+            const sun = new THREE.DirectionalLight(0xffffff, 1.0);
             sun.position.set(10, 50, 10); scene.add(sun);
 
             const road = new THREE.Mesh(new THREE.PlaneGeometry(22, 2000), new THREE.MeshPhongMaterial({ color: 0x333333 }));
@@ -142,6 +141,7 @@
                     gltf.scene.traverse(node => {
                         if (node.isMesh) {
                             const clone = node.clone();
+                            fixMat(clone);
                             indices.forEach(idx => decorPool[idx].push(clone));
                         }
                     });
@@ -153,15 +153,16 @@
             unpack('pine_trees_pack__ps1_low_poly.glb', [2]);
             unpack('snowy_pine_trees_pack__ps1_low_poly.glb', [3]);
             
-            // 💡 路燈：強化遍歷邏輯，強制改色確保看得到
-            loader.load('Street_Light.glb', (gltf) => { 
-                gltf.scene.traverse(node => {
+            // 💡 路燈：強制更換材質，解決粉紅色貼圖錯誤
+            loader.load('Street_Light.glb', (g) => { 
+                g.scene.traverse(node => {
                     if(node.isMesh) {
-                        const m = node.clone();
-                        m.material = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.5, roughness: 0.5 });
-                        streetLightPool.push(m);
+                        node.material = new THREE.MeshStandardMaterial({ color: 0x999999, roughness: 0.5, metalness: 0.5 });
+                        node.material.transparent = false;
+                        node.material.depthWrite = true;
                     }
                 });
+                streetLightModel = g.scene;
                 checkLoaded(); 
             });
             loader.load('Snowman.glb', (g) => { snowmanModel = g.scene; checkLoaded(); });
@@ -169,6 +170,7 @@
             camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
         }
 
+        function fixMat(m) { m.traverse(n => { if(n.isMesh) { n.material.transparent = false; n.material.opacity = 1; n.material.depthWrite = true; } }); }
         function checkLoaded() { loadedCount++; if(loadedCount >= totalToLoad) { document.getElementById('start-btn').disabled = false; document.getElementById('start-btn').innerText = "進入賽道"; } }
 
         function createObstacle() {
@@ -188,10 +190,10 @@
             let item = null;
             const rand = Math.random();
 
-            // 💡 路燈生成機率暴力拉高到 35%
-            if (rand < 0.35 && streetLightPool.length > 0) {
-                item = streetLightPool[Math.floor(Math.random() * streetLightPool.length)].clone();
-                item.scale.set(7.0, 7.0, 7.0); 
+            // 💡 路燈機率 35%，比例調大至 10.0
+            if (rand < 0.35 && streetLightModel) {
+                item = streetLightModel.clone();
+                item.scale.set(10.0, 10.0, 10.0);
                 item.rotation.y = (side > 0) ? 0 : Math.PI;
             } else if (idx === 3 && rand < 0.45 && snowmanModel) {
                 item = snowmanModel.clone();
@@ -202,8 +204,8 @@
             }
             
             if (item) {
-                // 將位置更靠近路邊 (x: 9.2)
-                item.position.set(side * 9.2, 0, -220); 
+                // 固定位置在路邊 x: 9.0
+                item.position.set(side * 9.0, 0, -220); 
                 scene.add(item); decor.push(item);
             }
         }
@@ -237,7 +239,7 @@
             renderer.render(scene, camera);
         }
 
-        function endGame() { gameStarted = false; setTimeout(() => { alert("💥 任務結束！得分: " + score); location.reload(); }, 100); }
+        function endGame() { gameStarted = false; setTimeout(() => { alert("💥 任務結束！最終得分: " + score); location.reload(); }, 100); }
 
         function updateSeasons() {
             const idx = Math.floor(score / 200) % 4;
