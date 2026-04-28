@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 全功能修復版</title>
+    <title>亡命飆速 - 四季生態系整合版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -68,13 +68,17 @@
     <script>
         let scene, camera, renderer, car, grassPlane, gameStarted = false, score = 0;
         let obstacles = [], decor = [], roadLines = [];
-        let obsCarModels = {}; 
-        let policeLightR, policeLightB; 
+        let obsCarModels = {};
+        // 💡 建立四季物件儲存庫 (0:春, 1:夏, 2:秋, 3:冬)
+        let decorModels = { 0: [], 1: [], 2: [], 3: [] };
+        let streetLightModel;
+        
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let currentSpeed = 1.2, hp = 100;
         let settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
         let loadedCount = 0;
-        const totalToLoad = 7; 
+        // 💡 修正總載入數量：7台車 + 3個樹包 + 1個雪人 + 1個路燈 = 12
+        const totalToLoad = 12; 
 
         function setSetting(type, val) {
             settings[type] = val;
@@ -96,29 +100,19 @@
             gameStarted = true;
             document.getElementById('start-screen').style.display = 'none';
             if (settings.mode === 'easy') document.getElementById('hp-container').style.display = 'block';
-            
-            // 基礎速度根據難度設定
             currentSpeed = 1.0 + (settings.diff * 0.3); 
-            
             initControls(); animate();
-
-            // 💡 核心修正：分數、加速、四季變換計時器
             setInterval(() => {
                 if(gameStarted) {
                     score++;
                     document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0');
-                    
-                    // 💡 動態加速：每秒增加 0.002 速度
                     currentSpeed += 0.002;
                     document.getElementById('speedo').innerText = Math.floor(currentSpeed * 80) + " KM/H";
-                    
-                    // 💡 更新四季
                     updateSeasons(); 
                 }
             }, 100);
-
             setInterval(createObstacle, 1100); 
-            setInterval(createDecor, 600);
+            setInterval(createDecor, 400); // 💡 加快裝飾生成，讓風景更豐富
         }
 
         function init3D() {
@@ -138,9 +132,7 @@
             const road = new THREE.Mesh(new THREE.PlaneGeometry(22, 2000), new THREE.MeshPhongMaterial({ color: 0x333333 }));
             road.rotation.x = -Math.PI / 2; scene.add(road);
 
-            const grassGeo = new THREE.PlaneGeometry(2000, 2000);
-            const grassMat = new THREE.MeshPhongMaterial({ color: 0x7cfc00 });
-            grassPlane = new THREE.Mesh(grassGeo, grassMat);
+            grassPlane = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshPhongMaterial({ color: 0x7cfc00 }));
             grassPlane.rotation.x = -Math.PI / 2; grassPlane.position.y = -0.1; scene.add(grassPlane);
 
             for (let i = 0; i < 60; i++) {
@@ -155,49 +147,67 @@
             scene.add(policeLightR, policeLightB);
 
             const loader = new THREE.GLTFLoader();
-            car = new THREE.Group(); scene.add(car);
 
+            // 1. 載入車子
             loader.load('car.glb', (gltf) => { 
-                let model = gltf.scene;
-                fixTransparent(model);
-                model.scale.set(4.5, 4.5, 4.5); 
-                model.rotation.y = 0; 
-                car.add(model); 
-                checkLoaded();
+                let model = gltf.scene; fixTransparent(model);
+                model.scale.set(4.5, 4.5, 4.5); model.rotation.y = 0;
+                car = new THREE.Group(); car.add(model); scene.add(car); car.position.z = 15; checkLoaded();
             });
 
             const carFiles = ['car1.glb', 'car2.glb', 'car3.glb', 'car4.glb', 'car5.glb', 'car6.glb'];
             carFiles.forEach(file => {
                 loader.load(file, (gltf) => {
-                    let model = gltf.scene;
-                    fixTransparent(model);
-                    if(file === 'car6.glb') model.scale.set(1.8, 1.8, 1.8);
-                    else model.scale.set(3.2, 3.2, 3.2);
-                    obsCarModels[file] = model; 
-                    checkLoaded();
+                    let model = gltf.scene; fixTransparent(model);
+                    if(file === 'car6.glb') model.scale.set(1.8, 1.8, 1.8); else model.scale.set(3.2, 3.2, 3.2);
+                    obsCarModels[file] = model; checkLoaded();
                 }, undefined, (err) => { checkLoaded(); });
             });
 
+            // 2. 💡 載入四季裝飾品 (依照你上傳的檔名)
+            // 春夏使用 birch
+            loader.load('birch_trees_pack__ps1_low_poly.glb', (gltf) => {
+                gltf.scene.traverse(n => { if(n.isMesh) { fixTransparent(n); decorModels[0].push(n); decorModels[1].push(n); } });
+                checkLoaded();
+            }, undefined, (err) => checkLoaded());
+
+            // 秋天使用 pine
+            loader.load('pine_trees_pack__ps1_low_poly.glb', (gltf) => {
+                gltf.scene.traverse(n => { if(n.isMesh) { fixTransparent(n); decorModels[2].push(n); } });
+                checkLoaded();
+            }, undefined, (err) => checkLoaded());
+
+            // 冬天使用 snowy_pine 和 snowman
+            loader.load('snowy_pine_trees_pack__ps1_low_poly.glb', (gltf) => {
+                gltf.scene.traverse(n => { if(n.isMesh) { fixTransparent(n); decorModels[3].push(n); } });
+                checkLoaded();
+            }, undefined, (err) => checkLoaded());
+
+            loader.load('Snowman.glb', (gltf) => {
+                let model = gltf.scene; fixTransparent(model);
+                model.scale.set(2, 2, 2); decorModels[3].push(model);
+                checkLoaded();
+            }, undefined, (err) => checkLoaded());
+
+            // 路燈 (全季節出現)
+            loader.load('Street_Light.glb', (gltf) => {
+                let model = gltf.scene; fixTransparent(model);
+                model.scale.set(4, 4, 4); streetLightModel = model;
+                checkLoaded();
+            }, undefined, (err) => checkLoaded());
+
             camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
-            car.position.z = 15;
         }
 
         function fixTransparent(model) {
-            model.traverse((node) => {
-                if (node.isMesh) {
-                    node.material.transparent = false;
-                    node.material.opacity = 1.0;
-                    node.material.depthWrite = true;
-                    node.material.needsUpdate = true;
-                }
-            });
+            model.traverse((node) => { if (node.isMesh) { node.material.transparent = false; node.material.opacity = 1.0; node.material.depthWrite = true; } });
         }
 
         function checkLoaded() {
             loadedCount++; 
             if(loadedCount >= totalToLoad) { 
-                document.getElementById('start-btn').disabled = false; 
-                document.getElementById('start-btn').innerText = "進入賽道"; 
+                const btn = document.getElementById('start-btn');
+                btn.disabled = false; btn.innerText = "開始飆速"; 
             }
         }
 
@@ -206,24 +216,31 @@
             if (!gameStarted || keys.length === 0) return;
             let randomKey = keys[Math.floor(Math.random() * keys.length)];
             let carClone = obsCarModels[randomKey].clone();
-            if (randomKey === 'car6.glb') {
-                carClone.rotation.y = 0;
-            } else {
-                carClone.rotation.y = Math.PI / 2;
-            }
+            carClone.rotation.y = (randomKey === 'car6.glb') ? 0 : Math.PI / 2;
             carClone.position.set(lanes[Math.floor(Math.random() * 3)], 0, -120);
             scene.add(carClone); obstacles.push(carClone);
         }
 
+        // 💡 升級裝飾生成邏輯
         function createDecor() {
             if (!gameStarted) return;
+            const seasonIdx = Math.floor(score / 200) % 4;
             const side = Math.random() > 0.5 ? 1 : -1;
-            const tree = new THREE.Group();
-            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.5), new THREE.MeshPhongMaterial({color: 0x8B4513}));
-            const foliage = new THREE.Mesh(new THREE.ConeGeometry(1.5, 4, 8), new THREE.MeshPhongMaterial({color: 0x228b22}));
-            foliage.position.y = 2.5; tree.add(trunk, foliage);
-            tree.position.set(side * 14, 1, -150);
-            scene.add(tree); decor.push(tree);
+            let item;
+
+            // 15% 機率生成路燈，其餘生成當季裝飾
+            if (Math.random() < 0.15 && streetLightModel) {
+                item = streetLightModel.clone();
+                item.rotation.y = (side > 0) ? 0 : Math.PI; // 路燈面向馬路
+            } else if (decorModels[seasonIdx].length > 0) {
+                item = decorModels[seasonIdx][Math.floor(Math.random() * decorModels[seasonIdx].length)].clone();
+                item.scale.set(4, 4, 4);
+            }
+
+            if (item) {
+                item.position.set(side * (Math.random() * 5 + 13), 0, -200);
+                scene.add(item); decor.push(item);
+            }
         }
 
         function animate() {
@@ -243,10 +260,7 @@
             
             obstacles.forEach((obs, i) => {
                 obs.position.z += currentSpeed;
-                const distZ = Math.abs(car.position.z - obs.position.z);
-                const distX = Math.abs(car.position.x - obs.position.x);
-                if (distZ < 1.3 && distX < 0.9) {
-                    document.getElementById('crashSound').play();
+                if (Math.abs(car.position.z - obs.position.z) < 1.3 && Math.abs(car.position.x - obs.position.x) < 1.0) {
                     gameStarted = false; setTimeout(() => { alert("🚨 被逮捕！得分: " + score); location.reload(); }, 100);
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
@@ -254,12 +268,10 @@
             renderer.render(scene, camera);
         }
 
-        // 💡 修正四季場景切換函數
         function updateSeasons() {
-            const seasonIndex = Math.floor(score / 200) % 4; // 每 200 分換一季
+            const seasonIndex = Math.floor(score / 200) % 4;
             const skyColors = [0x87CEEB, 0xfff9c4, 0xffcc80, 0xd1d9e6];
             const grassColors = [0x7cfc00, 0x228b22, 0xdaa520, 0xffffff];
-            
             if(scene) {
                 scene.background.setHex(skyColors[seasonIndex]);
                 scene.fog.color.setHex(skyColors[seasonIndex]);
@@ -268,11 +280,11 @@
         }
 
         function initControls() {
-            const moveLeft = () => { if (currentLaneIndex > 0) { currentLaneIndex--; targetX = lanes[currentLaneIndex]; } };
-            const moveRight = () => { if (currentLaneIndex < 2) { currentLaneIndex++; targetX = lanes[currentLaneIndex]; } };
-            window.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') moveLeft(); if (e.key === 'ArrowRight') moveRight(); });
-            window.addEventListener('touchstart', (e) => { if (!gameStarted || settings.ctrl !== 'touch') return; if (e.touches[0].clientX < window.innerWidth / 2) moveLeft(); else moveRight(); });
-            window.addEventListener('deviceorientation', (e) => { if (!gameStarted || settings.ctrl !== 'tilt') return; const tilt = e.gamma; if (tilt < -10) currentLaneIndex = 0; else if (tilt > 10) currentLaneIndex = 2; else currentLaneIndex = 1; targetX = lanes[currentLaneIndex]; });
+            const l = () => { if (currentLaneIndex > 0) { currentLaneIndex--; targetX = lanes[currentLaneIndex]; } };
+            const r = () => { if (currentLaneIndex < 2) { currentLaneIndex++; targetX = lanes[currentLaneIndex]; } };
+            window.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') l(); if (e.key === 'ArrowRight') r(); });
+            window.addEventListener('touchstart', (e) => { if (settings.ctrl === 'touch') e.touches[0].clientX < window.innerWidth/2 ? l() : r(); });
+            window.addEventListener('deviceorientation', (e) => { if (settings.ctrl === 'tilt') { const t = e.gamma; if (t < -10) currentLaneIndex = 0; else if (t > 10) currentLaneIndex = 2; else currentLaneIndex = 1; targetX = lanes[currentLaneIndex]; } });
         }
         window.onload = init3D;
     </script>
