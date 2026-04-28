@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 視覺生態最終校準版</title>
+    <title>亡命飆速 - 最終極比例與視覺校正版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -30,7 +30,7 @@
 
     <div id="start-screen">
         <div class="title">亡命飆速</div>
-        <div class="warning-text">🚨 系統最終校準！視覺大進化！</div>
+        <div class="warning-text">🚨 最終視覺校正完成！警燈、路燈已就緒！</div>
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -68,14 +68,13 @@
     <script>
         let scene, camera, renderer, car, grassPlane, gameStarted = false, score = 0;
         let obstacles = [], decor = [], roadLines = [];
-        let obsCarModels = {}, streetLightModel, snowmanModel;
-        let seasonTrees = { 0: [], 1: [], 2: [], 3: [] };
-        let policeLightR, policeLightB, visualLightBar; 
+        let obsCarModels = {}, decorModels = { 0: [], 1: [], 2: [], 3: [] }, streetLightModel, snowmanModel;
+        let policeLightR, policeLightB, lightBarMesh; 
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let currentSpeed = 1.0, hp = 100;
         let settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
         let loadedCount = 0;
-        const totalToLoad = 12;
+        const totalToLoad = 12; // 7台車 + 3組樹 + 雪人 + 路燈
 
         function setSetting(type, val) {
             settings[type] = val;
@@ -116,8 +115,8 @@
             renderer.outputEncoding = THREE.sRGBEncoding;
             document.body.appendChild(renderer.domElement);
 
-            scene.add(new THREE.AmbientLight(0xffffff, 1.4));
-            const sun = new THREE.DirectionalLight(0xffffff, 1.0);
+            scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+            const sun = new THREE.DirectionalLight(0xffffff, 0.8);
             sun.position.set(10, 50, 10); scene.add(sun);
 
             const road = new THREE.Mesh(new THREE.PlaneGeometry(22, 2000), new THREE.MeshPhongMaterial({ color: 0x222222 }));
@@ -125,26 +124,39 @@
             grassPlane = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshPhongMaterial({ color: 0x7cfc00 }));
             grassPlane.rotation.x = -Math.PI / 2; grassPlane.position.y = -0.15; scene.add(grassPlane);
 
-            // 💡 實體警燈條 (Visual Light Bar)
+            // 💡 實體 Low Poly 警燈條：一個簡單的長方體 Mesh
             const lightBarGeo = new THREE.BoxGeometry(1.2, 0.2, 0.3);
-            const lightBarMat = new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0x000000 });
-            visualLightBar = new THREE.Mesh(lightBarGeo, lightBarMat);
+            const lightBarMat = new THREE.MeshStandardMaterial({ 
+                color: 0x111111,
+                emissive: 0x000000,
+                metalness: 0.8,
+                roughness: 0.2
+            });
+            lightBarMesh = new THREE.Mesh(lightBarGeo, lightBarMat);
             
-            policeLightR = new THREE.PointLight(0xff0000, 0, 80);
-            policeLightB = new THREE.PointLight(0x0000ff, 0, 80);
-            scene.add(policeLightR, policeLightB, visualLightBar);
+            policeLightR = new THREE.PointLight(0xff0000, 0, 50); // 強度稍減
+            policeLightB = new THREE.PointLight(0x0000ff, 0, 50);
+            scene.add(policeLightR, policeLightB, lightBarMesh);
 
             const loader = new THREE.GLTFLoader();
-            loader.load('car.glb', (gltf) => { car = gltf.scene; fixMat(car); car.scale.set(4.5, 4.5, 4.5); scene.add(car); car.position.z = 15; checkLoaded(); });
-
-            ['car1.glb','car2.glb','car3.glb','car4.glb','car5.glb','car6.glb'].forEach(f => {
-                loader.load(f, (g) => { fixMat(g.scene); if(f==='car6.glb') g.scene.scale.set(1.8, 1.8, 1.8); else g.scene.scale.set(3.2, 3.2, 3.2); obsCarModels[f] = g.scene; checkLoaded(); });
+            loader.load('car.glb', (gltf) => { 
+                car = gltf.scene; fixMat(car); car.scale.set(4.5, 4.5, 4.5); 
+                scene.add(car); car.position.z = 15; checkLoaded(); 
             });
 
+            ['car1.glb','car2.glb','car3.glb','car4.glb','car5.glb','car6.glb'].forEach(f => {
+                loader.load(f, (g) => { 
+                    fixMat(g.scene); 
+                    if(f==='car6.glb') g.scene.scale.set(1.8, 1.8, 1.8); else g.scene.scale.set(3.2, 3.2, 3.2);
+                    obsCarModels[f] = g.scene; checkLoaded(); 
+                }, undefined, () => checkLoaded());
+            });
+
+            // 🌳 四季裝飾分開載入並拆解子物件 (檔名精確校準)
             const unpack = (g, list) => { g.scene.children.forEach(c => { const v = c.clone(); fixMat(v); list.push(v); }); };
-            loader.load('birch_trees_pack__ps1_low_poly.glb', (g) => { unpack(g, seasonTrees[0]); unpack(g, seasonTrees[1]); checkLoaded(); });
-            loader.load('pine_trees_pack__ps1_low_poly.glb', (g) => { unpack(g, seasonTrees[2]); checkLoaded(); });
-            loader.load('snowy_pine_trees_pack__ps1_low_poly.glb', (g) => { unpack(g, seasonTrees[3]); checkLoaded(); });
+            loader.load('birch_trees_pack__ps1_low_poly.glb', (g) => { unpack(g, decorModels[0]); unpack(g, decorModels[1]); checkLoaded(); });
+            loader.load('pine_trees_pack__ps1_low_poly.glb', (g) => { unpack(g, decorModels[2]); checkLoaded(); });
+            loader.load('snowy_pine_trees_pack__ps1_low_poly.glb', (g) => { unpack(g, decorModels[3]); checkLoaded(); });
             loader.load('Snowman.glb', (g) => { fixMat(g.scene); snowmanModel = g.scene; checkLoaded(); });
             loader.load('Street_Light.glb', (g) => { fixMat(g.scene); streetLightModel = g.scene; checkLoaded(); });
 
@@ -166,28 +178,28 @@
 
         function createDecor() {
             if (!gameStarted) return;
-            const idx = Math.floor(score / 200) % 4;
+            const idx = Math.floor(score / 200) % 4; // 四季索引
             const side = Math.random() > 0.5 ? 1 : -1;
             let item;
             
             const rand = Math.random();
-            // 💡 路燈比例調整為 10.0，且提高機率
-            if (rand < 0.2 && streetLightModel) {
+            // 💡 路燈固定生成邏輯
+            if (rand < 0.18 && streetLightModel) {
                 item = streetLightModel.clone();
-                item.scale.set(10.0, 10.0, 10.0);
+                item.scale.set(4.0, 4.0, 4.0); // 物件大小調整
                 item.rotation.y = (side > 0) ? 0 : Math.PI;
-            } else if (idx === 3 && rand < 0.35 && snowmanModel) {
+            } else if (idx === 3 && rand < 0.3 && snowmanModel) { // 冬天雪人
                 item = snowmanModel.clone();
-                item.scale.set(5.0, 5.0, 5.0);
-            } else if (seasonTrees[idx].length > 0) {
-                item = seasonTrees[idx][Math.floor(Math.random() * seasonTrees[idx].length)].clone();
-                // 💡 樹木比例從 0.05 回升至 4.0
-                item.scale.set(4.0, 4.0, 4.0);
+                item.scale.set(1.5, 1.5, 1.5); // 物件大小調整
+            } else if (decorModels[idx].length > 0) {
+                // 💡 隨機從該季節的樹木列表中挑選
+                item = decorModels[idx][Math.floor(Math.random() * decorModels[idx].length)].clone();
+                item.scale.set(2.5 + Math.random(), 2.5 + Math.random(), 2.5 + Math.random()); // 物件大小與隨機大小調整
             }
             
             if (item) {
-                // 💡 距離座標微調：x: 8.5 ~ 11.5 之間，絕對看得到
-                item.position.set(side * (Math.random() * 3 + 8.5), 0, -200);
+                // 💡 座標偏移修正：將物件拉到馬路兩側最外圍 (x: 12 ~ 18)
+                item.position.set(side * (Math.random() * 6 + 12), 0, -200);
                 scene.add(item); decor.push(item);
             }
         }
@@ -200,15 +212,17 @@
             car.position.x += (targetX - car.position.x) * 0.15;
             car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
 
-            // 💡 警燈視覺同步
+            // 💡 實體警燈與光源同步動畫 (y: 4.1)
             let flash = Math.floor(Date.now() / 150) % 2;
-            policeLightR.intensity = flash === 0 ? 5000 : 0;
-            policeLightB.intensity = flash === 1 ? 5000 : 0;
-            policeLightR.position.set(car.position.x - 0.5, 4.2, car.position.z);
-            policeLightB.position.set(car.position.x + 0.5, 4.2, car.position.z);
-            visualLightBar.position.set(car.position.x, 4.1, car.position.z);
-            visualLightBar.material.emissive.setHex(flash === 0 ? 0xff0000 : 0x0000ff);
-            visualLightBar.material.emissiveIntensity = 2.0;
+            policeLightR.intensity = flash === 0 ? 50 : 0;
+            policeLightB.intensity = flash === 1 ? 50 : 0;
+            policeLightR.position.set(car.position.x - 0.5, 4.2, car.position.z); // 光源同步調整
+            policeLightB.position.set(car.position.x + 0.5, 4.2, car.position.z); // 光源同步調整
+            
+            lightBarMesh.position.set(car.position.x, 4.1, car.position.z); // 燈條位置與車子同步
+            // 同時讓燈條實體也變色發光
+            lightBarMesh.material.emissive.setHex(flash === 0 ? 0xff0000 : 0x0000ff);
+            lightBarMesh.material.emissiveIntensity = 1.0;
 
             decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); }});
             obstacles.forEach((obs, i) => {
@@ -225,16 +239,16 @@
             renderer.render(scene, camera);
         }
 
-        function endGame() { gameStarted = false; setTimeout(() => { alert("💥 任務結束！最終得分: " + score); location.reload(); }, 100); }
+        function endGame() { gameStarted = false; setTimeout(() => { alert("💥 任務結束！得分: " + score); location.reload(); }, 100); }
 
         function updateSeasons() {
             const idx = Math.floor(score / 200) % 4;
-            const sky = [0x87CEEB, 0x00BFFF, 0xFFA500, 0xE0F7FA];
-            const grass = [0x7cfc00, 0x228b22, 0xdaa520, 0xffffff];
+            const sky = [0x87CEEB, 0x00BFFF, 0xFFA500, 0xE0F7FA]; // 春、夏、秋、冬
+            const grass = [0x7cfc00, 0x228b22, 0xdaa520, 0xffffff]; // 春、夏、秋、冬草地顏色
             if(scene) {
                 scene.background.setHex(sky[idx]);
                 scene.fog.color.setHex(sky[idx]);
-                grassPlane.material.color.setHex(grass[idx]);
+                grassPlane.material.color.setHex(grass[idx]); // 草地顏色切換
             }
         }
 
