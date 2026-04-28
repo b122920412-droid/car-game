@@ -3,29 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 介面與路燈最終校準版</title>
+    <title>亡命飆速 - 新路燈校準版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #0b0b1a; font-family: 'Segoe UI', Arial, sans-serif; touch-action: none; }
-        
-        /* 💡 參考截圖完全恢復酷炫介面 */
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a3a, #050510); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; color: white; }
-        .title { font-size: 56px; font-weight: 900; letter-spacing: 6px; color: #fff; text-shadow: 0 0 30px #007bff, 0 0 60px #007bff; margin-bottom: 5px; }
-        .warning-text { color: #ff4444; font-weight: bold; margin-bottom: 25px; letter-spacing: 2px; animation: blink 1.2s infinite; font-size: 20px; text-shadow: 0 0 10px #ff0000; }
+        .title { font-size: 56px; font-weight: 900; letter-spacing: 6px; color: #fff; text-shadow: 0 0 30px #007bff; margin-bottom: 5px; }
+        .warning-text { color: #ff4444; font-weight: bold; margin-bottom: 25px; letter-spacing: 2px; animation: blink 1.2s infinite; font-size: 20px; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-        
         .setting-group { margin: 12px 0; display: flex; flex-direction: column; align-items: center; background: rgba(255,255,255,0.05); padding: 18px; border-radius: 25px; width: 340px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
-        .setting-label { font-size: 14px; color: #00d2ff; margin-bottom: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
-        .option-group { display: flex; gap: 12px; justify-content: center; }
-        .opt-btn { padding: 10px 22px; border: 1px solid #007bff; background: rgba(0, 123, 255, 0.1); color: white; border-radius: 50px; cursor: pointer; transition: 0.3s; font-size: 14px; font-weight: bold; }
-        .opt-btn.active { background: #007bff; box-shadow: 0 0 20px #007bff; border-color: #00ffcc; color: white; }
-        
-        .start-btn { padding: 20px 80px; font-size: 26px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: 900; margin-top: 30px; box-shadow: 0 10px 30px rgba(0,123,255,0.4); transition: 0.4s; }
-        .start-btn:disabled { background: #333; cursor: wait; opacity: 0.6; box-shadow: none; }
-        
+        .setting-label { font-size: 14px; color: #00d2ff; margin-bottom: 12px; font-weight: bold; }
+        .option-group { display: flex; gap: 12px; }
+        .opt-btn { padding: 10px 22px; border: 1px solid #007bff; background: rgba(0, 123, 255, 0.1); color: white; border-radius: 50px; cursor: pointer; transition: 0.3s; font-size: 14px; }
+        .opt-btn.active { background: #007bff; box-shadow: 0 0 20px #007bff; border-color: #00ffcc; }
+        .start-btn { padding: 20px 80px; font-size: 26px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: 900; margin-top: 30px; box-shadow: 0 10px 30px rgba(0,123,255,0.4); }
+        .start-btn:disabled { background: #333; cursor: wait; opacity: 0.6; }
         #ui-layer { position: absolute; top: 25px; left: 25px; right: 25px; pointer-events: none; z-index: 2000; }
-        #scoreDisplay { font-size: 42px; color: #0f0; font-family: 'Courier New', Courier, monospace; font-weight: bold; float: right; text-shadow: 0 0 15px #0f0; }
+        #scoreDisplay { font-size: 42px; color: #0f0; font-family: monospace; font-weight: bold; float: right; text-shadow: 0 0 15px #0f0; }
         #speedo { color: #fff; font-size: 22px; font-weight: bold; clear: both; float: right; margin-top: 8px; font-family: monospace; }
-        #hp-container { width: 220px; height: 20px; background: #222; border: 2px solid #fff; border-radius: 12px; overflow: hidden; display: none; margin-bottom: 10px; box-shadow: 0 0 10px rgba(255,255,255,0.2); }
+        #hp-container { width: 220px; height: 20px; background: #222; border: 2px solid #fff; border-radius: 12px; overflow: hidden; display: none; margin-bottom: 10px; }
         #hp-bar { width: 100%; height: 100%; background: linear-gradient(to right, #ff0000, #ff6666); transition: 0.3s; }
     </style>
 </head>
@@ -36,7 +31,6 @@
     <div id="start-screen">
         <div class="title">亡命飆速</div>
         <div class="warning-text">🚨 警告：前方警方已設下強力路障！</div>
-        
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -74,7 +68,7 @@
     <script>
         let scene, camera, renderer, car, grassPlane, gameStarted = false, score = 0;
         let obstacles = [], decor = [];
-        let obsCarModels = {}, streetLightModel = null, snowmanModel = null;
+        let obsCarModels = {}, streetLightPool = [], snowmanModel = null;
         let decorPool = { 0: [], 1: [], 2: [], 3: [] };
         let policeLightR, policeLightB; 
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
@@ -108,13 +102,13 @@
                 }
             }, 100);
             setInterval(createObstacle, 1100 - (settings.diff * 100)); 
-            setInterval(createDecor, 380); 
+            setInterval(createDecor, 450); 
         }
 
         function init3D() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87CEEB);
-            scene.fog = new THREE.Fog(0x87CEEB, 40, 180);
+            scene.fog = new THREE.Fog(0x87CEEB, 40, 200);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -135,10 +129,10 @@
             scene.add(policeLightR, policeLightB);
 
             const loader = new THREE.GLTFLoader();
-            loader.load('car.glb', (g) => { car = g.scene; fixMat(car); car.scale.set(4.5, 4.5, 4.5); scene.add(car); car.position.z = 15; checkLoaded(); });
+            loader.load('car.glb', (g) => { car = g.scene; car.scale.set(4.5, 4.5, 4.5); scene.add(car); car.position.z = 15; checkLoaded(); });
 
             ['car1.glb','car2.glb','car3.glb','car4.glb','car5.glb','car6.glb'].forEach(f => {
-                loader.load(f, (g) => { fixMat(g.scene); if(f==='car6.glb') g.scene.scale.set(1.8, 1.8, 1.8); else g.scene.scale.set(3.2, 3.2, 3.2); obsCarModels[f] = g.scene; checkLoaded(); });
+                loader.load(f, (g) => { if(f==='car6.glb') g.scene.scale.set(1.8, 1.8, 1.8); else g.scene.scale.set(3.2, 3.2, 3.2); obsCarModels[f] = g.scene; checkLoaded(); });
             });
 
             const unpack = (file, indices) => {
@@ -157,15 +151,16 @@
             unpack('pine_trees_pack__ps1_low_poly.glb', [2]);
             unpack('snowy_pine_trees_pack__ps1_low_poly.glb', [3]);
             
-            // 💡 路燈最終暴力載入
-            loader.load('Street_Light.glb', (g) => { 
+            // 💡 讀取新路燈模型：nintendogs_street_light.glb
+            loader.load('nintendogs_street_light.glb', (g) => { 
                 g.scene.traverse(node => {
                     if(node.isMesh) {
-                        node.material = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.3, metalness: 0.7 });
-                        node.visible = true;
+                        const m = node.clone();
+                        m.material = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.3, metalness: 0.7 });
+                        m.visible = true;
+                        streetLightPool.push(m);
                     }
                 });
-                streetLightModel = g.scene; // 存入全域變數
                 checkLoaded(); 
             });
             loader.load('Snowman.glb', (g) => { snowmanModel = g.scene; checkLoaded(); });
@@ -202,12 +197,12 @@
             let item = null;
             const rand = Math.random();
 
-            // 💡 路燈機率 40%
-            if (rand < 0.4 && streetLightModel) {
-                item = streetLightModel.clone();
-                item.scale.set(6.5, 6.5, 6.5);
+            // 💡 路燈出現率 35%，比例調大至 4.0
+            if (rand < 0.35 && streetLightPool.length > 0) {
+                item = streetLightPool[Math.floor(Math.random() * streetLightPool.length)].clone();
+                item.scale.set(4.0, 4.0, 4.0); 
                 item.rotation.y = (side > 0) ? 0 : Math.PI;
-            } else if (idx === 3 && rand < 0.5 && snowmanModel) {
+            } else if (idx === 3 && rand < 0.45 && snowmanModel) {
                 item = snowmanModel.clone();
                 item.scale.set(1.5, 1.5, 1.5);
             } else if (decorPool[idx].length > 0) {
@@ -216,8 +211,7 @@
             }
             
             if (item) {
-                // 將物件位置固定在路邊 (x: 9.5)
-                item.position.set(side * 9.5, 0, -200); 
+                item.position.set(side * 9.0, 0, -220); 
                 scene.add(item); decor.push(item);
             }
         }
@@ -229,13 +223,11 @@
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
             car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
-
             let flash = Math.floor(Date.now() / 150) % 2;
-            policeLightR.intensity = flash === 0 ? 80 : 0;
-            policeLightB.intensity = flash === 1 ? 80 : 0;
-            policeLightR.position.set(car.position.x - 0.7, 4.4, car.position.z);
-            policeLightB.position.set(car.position.x + 0.7, 4.4, car.position.z);
-
+            policeLightR.intensity = flash === 0 ? 100 : 0;
+            policeLightB.intensity = flash === 1 ? 100 : 0;
+            policeLightR.position.set(car.position.x - 0.7, 4.5, car.position.z);
+            policeLightB.position.set(car.position.x + 0.7, 4.5, car.position.z);
             decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); }});
             obstacles.forEach((obs, i) => {
                 obs.position.z += currentSpeed;
