@@ -3,22 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 新路燈視覺修正版</title>
+    <title>亡命飆速 - 真實道路模擬版</title>
     <style>
-        html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #0b0b1a; font-family: 'Segoe UI', Arial, sans-serif; touch-action: none; }
+        html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: 'Segoe UI', Arial, sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a3a, #050510); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; color: white; }
         .title { font-size: 56px; font-weight: 900; letter-spacing: 6px; color: #fff; text-shadow: 0 0 30px #007bff; margin-bottom: 5px; }
-        .warning-text { color: #ff4444; font-weight: bold; margin-bottom: 25px; letter-spacing: 2px; animation: blink 1.2s infinite; font-size: 20px; }
+        .warning-text { color: #ff4444; font-weight: bold; margin-bottom: 25px; letter-spacing: 2px; animation: blink 1.2s infinite; font-size: 18px; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         .setting-group { margin: 12px 0; display: flex; flex-direction: column; align-items: center; background: rgba(255,255,255,0.05); padding: 18px; border-radius: 25px; width: 340px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
+        .setting-label { font-size: 14px; color: #00d2ff; margin-bottom: 12px; font-weight: bold; display: block; }
         .option-group { display: flex; gap: 12px; }
         .opt-btn { padding: 10px 22px; border: 1px solid #007bff; background: rgba(0, 123, 255, 0.1); color: white; border-radius: 50px; cursor: pointer; transition: 0.3s; font-size: 14px; }
         .opt-btn.active { background: #007bff; box-shadow: 0 0 20px #007bff; border-color: #00ffcc; }
         .start-btn { padding: 20px 80px; font-size: 26px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: 900; margin-top: 30px; box-shadow: 0 10px 30px rgba(0,123,255,0.4); }
-        .start-btn:disabled { background: #333; cursor: wait; opacity: 0.6; }
         #ui-layer { position: absolute; top: 25px; left: 25px; right: 25px; pointer-events: none; z-index: 2000; }
-        #scoreDisplay { font-size: 42px; color: #0f0; font-family: monospace; font-weight: bold; float: right; text-shadow: 0 0 15px #0f0; }
-        #speedo { color: #fff; font-size: 22px; font-weight: bold; clear: both; float: right; margin-top: 8px; font-family: monospace; }
+        #scoreDisplay { font-size: 42px; color: #0f0; font-family: monospace; font-weight: bold; float: right; }
     </style>
 </head>
 <body>
@@ -28,25 +27,34 @@
     <div id="start-screen">
         <div class="title">亡命飆速</div>
         <div class="warning-text">🚨 警告：前方警方已設下強力路障！</div>
-        <div class="setting-group"><div class="option-group">
-            <button id="ctrl-touch" class="opt-btn active" onclick="setSetting('ctrl', 'touch')">鍵盤 / 觸控</button>
-            <button id="ctrl-tilt" class="opt-btn" onclick="setSetting('ctrl', 'tilt')">手機體感</button>
-        </div></div>
-        <div class="setting-group"><div class="option-group">
-            <button id="diff-1" class="opt-btn active" onclick="setSetting('diff', 1)">簡單</button>
-            <button id="diff-2" class="opt-btn" onclick="setSetting('diff', 2)">普通</button>
-            <button id="diff-3" class="opt-btn" onclick="setSetting('diff', 3)">困難</button>
-        </div></div>
-        <div class="setting-group"><div class="option-group">
-            <button id="mode-hard" class="opt-btn active" onclick="setSetting('mode', 'hard')">💀 一撞即死</button>
-            <button id="mode-easy" class="opt-btn" onclick="setSetting('mode', 'easy')">❤️ 護甲模式</button>
-        </div></div>
-        <button id="start-btn" class="start-btn" disabled onclick="handleStart()">資源載入中...</button>
+        
+        <div class="setting-group">
+            <div class="setting-label">🕹️ 操作模式</div>
+            <div class="option-group">
+                <button id="ctrl-touch" class="opt-btn active" onclick="setSetting('ctrl', 'touch')">鍵盤 / 觸控</button>
+                <button id="ctrl-tilt" class="opt-btn" onclick="setSetting('ctrl', 'tilt')">手機體感</button>
+            </div>
+        </div>
+        <div class="setting-group">
+            <div class="setting-label">🛡️ 挑戰難度</div>
+            <div class="option-group">
+                <button id="diff-1" class="opt-btn active" onclick="setSetting('diff', 1)">簡單</button>
+                <button id="diff-2" class="opt-btn" onclick="setSetting('diff', 2)">普通</button>
+                <button id="diff-3" class="opt-btn" onclick="setSetting('diff', 3)">困難</button>
+            </div>
+        </div>
+        <div class="setting-group">
+            <div class="setting-label">🔥 遊戲模式</div>
+            <div class="option-group">
+                <button id="mode-hard" class="opt-btn active" onclick="setSetting('mode', 'hard')">💀 一撞即死</button>
+                <button id="mode-easy" class="opt-btn" onclick="setSetting('mode', 'easy')">❤️ 護甲模式</button>
+            </div>
+        </div>
+        <button id="start-btn" class="start-btn" disabled onclick="handleStart()">進入賽道</button>
     </div>
 
     <div id="ui-layer">
         <div id="scoreDisplay">00000</div>
-        <div id="speedo">0 KM/H</div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -54,11 +62,10 @@
 
     <script>
         let scene, camera, renderer, car, grassPlane, gameStarted = false, score = 0;
-        let obstacles = [], decor = [], obsCarModels = {}, streetLightModel = null;
+        let obstacles = [], decor = [], streetLightModel = null;
         let decorPool = { 0: [], 1: [], 2: [], 3: [] };
         let policeLightR, policeLightB, lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
-        let currentSpeed = 1.0, settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
-        let loadedCount = 0, totalToLoad = 12;
+        let currentSpeed = 1.0, loadedCount = 0, totalToLoad = 12;
 
         function setSetting(type, val) {
             settings[type] = val;
@@ -70,11 +77,11 @@
             document.getElementById('bgm').play().catch(e => {});
             gameStarted = true;
             document.getElementById('start-screen').style.display = 'none';
-            currentSpeed = 0.8 + (settings.diff * 0.4); 
+            currentSpeed = 0.8 + (1 * 0.4); 
             initControls(); animate();
-            setInterval(() => { if(gameStarted) { score++; currentSpeed += 0.002; document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0'); document.getElementById('speedo').innerText = Math.floor(currentSpeed * 80) + " KM/H"; updateSeasons(); } }, 100);
-            setInterval(createObstacle, 1100 - (settings.diff * 100)); 
-            setInterval(createDecor, 450); 
+            setInterval(() => { if(gameStarted) { score++; currentSpeed += 0.002; document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0'); updateSeasons(); } }, 100);
+            setInterval(createObstacle, 1000); 
+            setInterval(createPairs, 500); // 💡 固定間隔生成路邊物件
         }
 
         function init3D() {
@@ -87,9 +94,9 @@
             document.body.appendChild(renderer.domElement);
 
             scene.add(new THREE.AmbientLight(0xffffff, 1.4));
-            const sun = new THREE.DirectionalLight(0xffffff, 1.0); sun.position.set(10, 50, 10); scene.add(sun);
+            const sun = new THREE.DirectionalLight(0xffffff, 1.2); sun.position.set(10, 50, 10); scene.add(sun);
 
-            const road = new THREE.Mesh(new THREE.PlaneGeometry(22, 2000), new THREE.MeshPhongMaterial({ color: 0x222222 }));
+            const road = new THREE.Mesh(new THREE.PlaneGeometry(22, 2000), new THREE.MeshPhongMaterial({ color: 0x333333 }));
             road.rotation.x = -Math.PI / 2; scene.add(road);
             grassPlane = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshPhongMaterial({ color: 0x7cfc00 }));
             grassPlane.rotation.x = -Math.PI / 2; grassPlane.position.y = -0.15; scene.add(grassPlane);
@@ -104,33 +111,35 @@
                 loader.load(f, (g) => { if(f==='car6.glb') g.scene.scale.set(1.8, 1.8, 1.8); else g.scene.scale.set(3.2, 3.2, 3.2); obsCarModels[f] = g.scene; checkLoaded(); });
             });
 
-            const unpack = (file, indices) => {
-                loader.load(file, (g) => {
-                    g.scene.traverse(n => { if(n.isMesh) { const clone = n.clone(); indices.forEach(idx => decorPool[idx].push(clone)); } });
+            const unpackTrees = (file, indices) => {
+                loader.load(file, (gltf) => {
+                    gltf.scene.traverse(node => { if (node.isMesh) { const clone = node.clone(); fixMat(clone); indices.forEach(idx => decorPool[idx].push(clone)); } });
                     checkLoaded();
                 });
             };
-            unpack('birch_trees_pack__ps1_low_poly.glb', [0, 1]);
-            unpack('pine_trees_pack__ps1_low_poly.glb', [2]);
-            unpack('snowy_pine_trees_pack__ps1_low_poly.glb', [3]);
+            unpackTrees('birch_trees_pack__ps1_low_poly.glb', [0, 1]);
+            unpackTrees('pine_trees_pack__ps1_low_poly.glb', [2]);
+            unpackTrees('snowy_pine_trees_pack__ps1_low_poly.glb', [3]);
             
-            // 💡 讀取新路燈模型：直接處理整個場景並強制更換材質
+            // 💡 讀取新路燈模型：針對 Nintendogs 模型做特殊縮放處理
             loader.load('nintendogs_street_light.glb', (g) => { 
                 g.scene.traverse(node => {
                     if(node.isMesh) {
-                        node.material = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.2 });
+                        // 移除奇怪的底座零件 (如果是正方形的 Mesh)
+                        if(node.name.includes("base") || node.name.includes("Box")) { node.visible = false; return; }
+                        node.material = new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.8, roughness: 0.2 });
                         node.visible = true;
                     }
                 });
                 streetLightModel = g.scene;
                 checkLoaded(); 
             });
-            loader.load('Snowman.glb', (g) => { checkLoaded(); });
 
             camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
         }
 
-        function checkLoaded() { loadedCount++; if(loadedCount >= totalToLoad) { document.getElementById('start-btn').disabled = false; document.getElementById('start-btn').innerText = "進入賽道"; } }
+        function fixMat(m) { m.traverse(n => { if(n.isMesh) { n.material.transparent = false; n.material.depthWrite = true; n.visible = true; } }); }
+        function checkLoaded() { loadedCount++; if(loadedCount >= totalToLoad) { document.getElementById('start-btn').disabled = false; } }
 
         function createObstacle() {
             const keys = Object.keys(obsCarModels); if (!gameStarted || keys.length === 0) return;
@@ -141,25 +150,29 @@
             scene.add(c); obstacles.push(c);
         }
 
-        function createDecor() {
+        // 💡 左右對齊生成邏輯
+        function createPairs() {
             if (!gameStarted) return;
             const idx = Math.floor(score / 200) % 4;
-            const side = Math.random() > 0.5 ? 1 : -1;
-            let item = null;
-            const rand = Math.random();
-
-            // 💡 提升路燈權重 (30%) 且強制比例
-            if (rand < 0.3 && streetLightModel) {
-                item = streetLightModel.clone();
-                item.scale.set(5.0, 5.0, 5.0); 
-                item.rotation.y = (side > 0) ? 0 : Math.PI;
-                item.position.set(side * 9.5, 0, -220); 
+            
+            // 每兩次生成一次路燈對
+            if (score % 20 === 0 && streetLightModel) {
+                [-1, 1].forEach(side => {
+                    let s = streetLightModel.clone();
+                    s.scale.set(0.6, 0.6, 0.6); // 💡 大幅縮小
+                    s.position.set(side * 9.5, 0, -220); 
+                    s.rotation.y = side > 0 ? 0 : Math.PI;
+                    scene.add(s); decor.push(s);
+                });
             } else if (decorPool[idx].length > 0) {
-                item = decorPool[idx][Math.floor(Math.random() * decorPool[idx].length)].clone();
-                item.scale.set(0.18, 0.18, 0.18);
-                item.position.set(side * 14, 0, -220);
+                // 生成樹木對
+                [-1, 1].forEach(side => {
+                    let t = decorPool[idx][Math.floor(Math.random() * decorPool[idx].length)].clone();
+                    t.scale.set(0.18, 0.18, 0.18);
+                    t.position.set(side * 14.5, 0, -220);
+                    scene.add(t); decor.push(t);
+                });
             }
-            if (item) { scene.add(item); decor.push(item); }
         }
 
         function animate() {
@@ -191,7 +204,7 @@
             const l = () => { if (currentLaneIndex > 0) { currentLaneIndex--; targetX = lanes[currentLaneIndex]; } };
             const r = () => { if (currentLaneIndex < 2) { currentLaneIndex++; targetX = lanes[currentLaneIndex]; } };
             window.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') l(); if (e.key === 'ArrowRight') r(); });
-            window.addEventListener('touchstart', (e) => { if (!gameStarted || settings.ctrl !== 'touch') return; if (e.touches[0].clientX < window.innerWidth / 2) l(); else r(); });
+            window.addEventListener('touchstart', (e) => { if (!gameStarted) return; if (e.touches[0].clientX < window.innerWidth / 2) l(); else r(); });
         }
         window.onload = init3D;
     </script>
