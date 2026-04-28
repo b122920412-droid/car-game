@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 警車視覺強化版</title>
+    <title>亡命飆速 - 體感修復版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -29,8 +29,8 @@
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
-                <button id="ctrl-touch" class="opt-btn active" onclick="setSetting('ctrl', 'touch')">鍵盤 / 手機點擊</button>
-                <button id="ctrl-tilt" class="opt-btn" onclick="setSetting('ctrl', 'tilt')">體感陀螺儀</button>
+                <button id="ctrl-touch" class="opt-btn active" onclick="setSetting('ctrl', 'touch')">鍵盤 / 觸控</button>
+                <button id="ctrl-tilt" class="opt-btn" onclick="setSetting('ctrl', 'tilt')">手機體感</button>
             </div>
         </div>
         <div class="setting-group">
@@ -44,11 +44,11 @@
         <div class="setting-group">
             <div class="setting-label">🔥 遊戲模式</div>
             <div class="option-group">
-                <button id="mode-hard" class="opt-btn active" onclick="setSetting('mode', 'hard')">💀 極限 (一撞即死)</button>
-                <button id="mode-easy" class="opt-btn" onclick="setSetting('mode', 'easy')">❤️ 護甲 (有HP)</button>
+                <button id="mode-hard" class="opt-btn active" onclick="setSetting('mode', 'hard')">💀 一撞即死</button>
+                <button id="mode-easy" class="opt-btn" onclick="setSetting('mode', 'easy')">❤️ 護甲模式</button>
             </div>
         </div>
-        <button id="start-btn" class="start-btn" disabled onclick="requestAndStart()">資源載入中...</button>
+        <button id="start-btn" class="start-btn" disabled onclick="handleStart()">資源載入中...</button>
     </div>
 
     <div id="ui-layer">
@@ -79,17 +79,20 @@
             document.getElementById(`${type}-${val}`).classList.add('active');
         }
 
-        // 💡 修正材質透明度但不覆蓋原始材質
-        function fixTransparentMaterials(model) {
-            model.traverse((node) => {
-                if (node.isMesh) {
-                    node.material.transparent = false;
-                    node.material.opacity = 1.0;
-                    node.material.alphaTest = 0.5; // 忽略部分透明度
-                    node.material.depthWrite = true;
-                    node.material.needsUpdate = true;
+        // 💡 處理啟動與權限
+        async function handleStart() {
+            if (settings.ctrl === 'tilt') {
+                if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    try {
+                        const permission = await DeviceOrientationEvent.requestPermission();
+                        if (permission !== 'granted') {
+                            alert("需要陀螺儀權解才能使用體感操作喔！已切換回觸控模式。");
+                            setSetting('ctrl', 'touch');
+                        }
+                    } catch (e) { console.error(e); }
                 }
-            });
+            }
+            requestAndStart();
         }
 
         function requestAndStart() {
@@ -116,7 +119,7 @@
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.outputEncoding = THREE.sRGBEncoding; // 💡 讓色彩更正確
+            renderer.outputEncoding = THREE.sRGBEncoding;
             document.body.appendChild(renderer.domElement);
 
             scene.add(new THREE.AmbientLight(0xffffff, 1.2));
@@ -145,7 +148,6 @@
 
             loader.load('car.glb', (gltf) => { 
                 let model = gltf.scene;
-                fixTransparentMaterials(model);
                 model.scale.set(4.5, 4.5, 4.5); 
                 model.rotation.y = 0; 
                 car.add(model); 
@@ -156,18 +158,8 @@
             carFiles.forEach(file => {
                 loader.load(file, (gltf) => {
                     let model = gltf.scene;
-                    fixTransparentMaterials(model);
-                    if(file === 'car6.glb') {
-                        model.scale.set(1.8, 1.8, 1.8); // 💡 警車進一步縮小
-                        // 💡 在警車上面加一個 3D 燈條
-                        let barGeo = new THREE.BoxGeometry(2, 0.3, 0.5);
-                        let barMat = new THREE.MeshBasicMaterial({color: 0x333333});
-                        let lightBar = new THREE.Mesh(barGeo, barMat);
-                        lightBar.position.y = 1.2;
-                        model.add(lightBar);
-                    } else {
-                        model.scale.set(3.2, 3.2, 3.2);
-                    }
+                    if(file === 'car6.glb') model.scale.set(1.8, 1.8, 1.8);
+                    else model.scale.set(3.2, 3.2, 3.2);
                     obsCarModels[file] = model; 
                     checkLoaded();
                 }, undefined, (err) => { checkLoaded(); });
@@ -185,20 +177,48 @@
             }
         }
 
+        // 💡 修改控制邏輯：加入陀螺儀
+        function initControls() {
+            const moveLeft = () => { if (currentLaneIndex > 0) { currentLaneIndex--; targetX = lanes[currentLaneIndex]; } };
+            const moveRight = () => { if (currentLaneIndex < 2) { currentLaneIndex++; targetX = lanes[currentLaneIndex]; } };
+
+            // 鍵盤
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft') moveLeft();
+                if (e.key === 'ArrowRight') moveRight();
+            });
+
+            // 觸控
+            window.addEventListener('touchstart', (e) => {
+                if (!gameStarted || settings.ctrl !== 'touch') return;
+                if (e.touches[0].clientX < window.innerWidth / 2) moveLeft(); else moveRight();
+            });
+
+            // 💡 陀螺儀 (傾斜手機)
+            window.addEventListener('deviceorientation', (e) => {
+                if (!gameStarted || settings.ctrl !== 'tilt') return;
+                const tilt = e.gamma; // 左右傾斜角度
+                if (tilt < -12) { // 向左傾斜
+                    currentLaneIndex = 0;
+                } else if (tilt > 12) { // 向右傾斜
+                    currentLaneIndex = 2;
+                } else { // 擺正
+                    currentLaneIndex = 1;
+                }
+                targetX = lanes[currentLaneIndex];
+            });
+        }
+
         function createObstacle() {
             const keys = Object.keys(obsCarModels);
             if (!gameStarted || keys.length === 0) return;
-            
             let randomKey = keys[Math.floor(Math.random() * keys.length)];
             let carClone = obsCarModels[randomKey].clone();
-            
             if (randomKey === 'car6.glb') {
-                carClone.rotation.y = 0; // 💡 警車橫放
-                carClone.userData = { isPolice: true };
+                carClone.rotation.y = 0;
             } else {
-                carClone.rotation.y = Math.PI / 2; // 💡 同向直行
+                carClone.rotation.y = Math.PI / 2;
             }
-            
             carClone.position.set(lanes[Math.floor(Math.random() * 3)], 0, -120);
             scene.add(carClone); obstacles.push(carClone);
         }
@@ -220,7 +240,6 @@
             car.position.x += (targetX - car.position.x) * 0.15;
             car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
 
-            // 💡 主角紅藍警燈閃爍
             let flash = Math.floor(Date.now() / 150) % 2;
             policeLightR.intensity = (flash === 0) ? 35 : 0;
             policeLightB.intensity = (flash === 1) ? 35 : 0;
@@ -241,13 +260,6 @@
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
             renderer.render(scene, camera);
-        }
-
-        function initControls() {
-            const moveLeft = () => { if (currentLaneIndex > 0) currentLaneIndex--; targetX = lanes[currentLaneIndex]; };
-            const moveRight = () => { if (currentLaneIndex < 2) currentLaneIndex++; targetX = lanes[currentLaneIndex]; };
-            window.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') moveLeft(); if (e.key === 'ArrowRight') moveRight(); });
-            window.addEventListener('touchstart', (e) => { if (!gameStarted) return; if (e.touches[0].clientX < window.innerWidth / 2) moveLeft(); else moveRight(); });
         }
         window.onload = init3D;
     </script>
