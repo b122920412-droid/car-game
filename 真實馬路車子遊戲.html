@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 修正載入版</title>
+    <title>亡命飆速 - 終極穩定整合版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -27,7 +27,7 @@
 <body>
     <div id="start-screen">
         <div class="title">亡命飆速</div>
-        <div class="warning-text">🚨 警告：前方警方已設下強力路障！</div>
+        <div class="warning-text">🚨 系統整合完成！全速前進！</div>
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -70,10 +70,10 @@
         let obsCarModels = {}, decorModels = { 0: [], 1: [], 2: [], 3: [] }, streetLightModel;
         let policeLightR, policeLightB; 
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
-        let currentSpeed = 1.2, hp = 100;
+        let currentSpeed = 1.0, hp = 100;
         let settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
         let loadedCount = 0;
-        const totalToLoad = 12;
+        const totalToLoad = 12; // 7台車 + 3個樹包 + 雪人 + 路燈
 
         function setSetting(type, val) {
             settings[type] = val;
@@ -93,22 +93,21 @@
             document.getElementById('start-screen').style.display = 'none';
             if (settings.mode === 'easy') {
                 document.getElementById('hp-container').style.display = 'block';
-                hp = 100;
-                updateHPBar();
+                hp = 100; updateHPBar();
             }
             currentSpeed = 0.8 + (settings.diff * 0.4); 
             initControls(); animate();
             setInterval(() => {
                 if(gameStarted) {
                     score++;
-                    currentSpeed += 0.002;
+                    currentSpeed += 0.002; // 分數越高越快
                     document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0');
                     document.getElementById('speedo').innerText = Math.floor(currentSpeed * 80) + " KM/H";
                     updateSeasons(); 
                 }
             }, 100);
             setInterval(createObstacle, 1100 - (settings.diff * 100)); 
-            setInterval(createDecor, 400);
+            setInterval(createDecor, 450);
         }
 
         function init3D() {
@@ -142,11 +141,12 @@
             scene.add(policeLightR, policeLightB);
 
             const loader = new THREE.GLTFLoader();
+            // 載入主角
             loader.load('car.glb', (gltf) => { 
                 let m = gltf.scene; fixMat(m); m.scale.set(4.5, 4.5, 4.5); 
                 car = new THREE.Group(); car.add(m); scene.add(car); car.position.z = 15; checkLoaded(); 
             });
-
+            // 載入路人
             ['car1.glb','car2.glb','car3.glb','car4.glb','car5.glb','car6.glb'].forEach(f => {
                 loader.load(f, (g) => { 
                     fixMat(g.scene); 
@@ -154,8 +154,7 @@
                     obsCarModels[f] = g.scene; checkLoaded(); 
                 }, undefined, () => checkLoaded());
             });
-
-            // 💡 重要：所有裝飾檔名改為小寫以對應 GitHub 檔案
+            // 載入四季 (檔名全部小寫校準)
             loader.load('birch_trees_pack__ps1_low_poly.glb', (g) => { splitPack(g.scene, 0); splitPack(g.scene, 1); checkLoaded(); });
             loader.load('pine_trees_pack__ps1_low_poly.glb', (g) => { splitPack(g.scene, 2); checkLoaded(); });
             loader.load('snowy_pine_trees_pack__ps1_low_poly.glb', (g) => { splitPack(g.scene, 3); checkLoaded(); });
@@ -186,11 +185,11 @@
             let item;
             if (Math.random() < 0.15 && streetLightModel) {
                 item = streetLightModel.clone();
-                item.scale.set(2.5, 2.5, 2.5);
+                item.scale.set(2.2, 2.2, 2.2);
                 item.rotation.y = (side > 0) ? 0 : Math.PI;
             } else if (decorModels[idx].length > 0) {
                 item = decorModels[idx][Math.floor(Math.random() * decorModels[idx].length)].clone();
-                let s = (item.name && item.name.toLowerCase().includes("snowman")) ? 0.8 : 0.5;
+                let s = (item.name && item.name.toLowerCase().includes("snowman")) ? 0.8 : 0.45;
                 item.scale.set(s, s, s);
             }
             if (item) { item.position.set(side * (Math.random() * 5 + 13), 0, -200); scene.add(item); decor.push(item); }
@@ -235,4 +234,9 @@
             const r = () => { if (currentLaneIndex < 2) { currentLaneIndex++; targetX = lanes[currentLaneIndex]; } };
             window.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') l(); if (e.key === 'ArrowRight') r(); });
             window.addEventListener('touchstart', (e) => { if (!gameStarted || settings.ctrl !== 'touch') return; if (e.touches[0].clientX < window.innerWidth / 2) l(); else r(); });
-            window.
+            window.addEventListener('deviceorientation', (e) => { if (!gameStarted || settings.ctrl !== 'tilt') return; const tilt = e.gamma; if (tilt < -10) currentLaneIndex = 0; else if (tilt > 10) currentLaneIndex = 2; else currentLaneIndex = 1; targetX = lanes[currentLaneIndex]; });
+        }
+        window.onload = init3D;
+    </script>
+</body>
+</html>
