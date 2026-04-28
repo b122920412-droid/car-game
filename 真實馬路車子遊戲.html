@@ -3,25 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 介面與路燈最終校準</title>
+    <title>亡命飆速 - 路燈絕對顯示版</title>
     <style>
-        html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; }
-        
-        /* 💡 恢復最初漂亮的選單介面 */
+        html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
         .title { font-size: 48px; font-weight: 900; letter-spacing: 4px; color: #fff; text-shadow: 0 0 20px #007bff; margin-bottom: 5px; }
         .warning-text { color: #ff4444; font-weight: bold; margin-bottom: 20px; letter-spacing: 2px; animation: blink 1.5s infinite; font-size: 18px; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        
         .setting-group { margin: 10px 0; display: flex; flex-direction: column; align-items: center; background: rgba(255,255,255,0.08); padding: 15px; border-radius: 20px; width: 320px; border: 1px solid rgba(255,255,255,0.1); }
-        .setting-label { font-size: 14px; color: #00d2ff; margin-bottom: 10px; font-weight: bold; }
         .option-group { display: flex; gap: 10px; justify-content: center; }
         .opt-btn { padding: 10px 20px; border: 1px solid #007bff; background: transparent; color: white; border-radius: 50px; cursor: pointer; transition: 0.3s; font-size: 14px; }
         .opt-btn.active { background: #007bff; box-shadow: 0 0 15px #007bff; border-color: #00ffcc; }
-        
-        .start-btn { padding: 18px 60px; font-size: 24px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; margin-top: 25px; box-shadow: 0 8px 25px rgba(0,123,255,0.5); transition: 0.3s; }
+        .start-btn { padding: 18px 60px; font-size: 24px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: bold; margin-top: 25px; box-shadow: 0 8px 25px rgba(0,123,255,0.5); }
         .start-btn:disabled { background: #444; cursor: wait; opacity: 0.7; }
-        
         #ui-layer { position: absolute; top: 20px; left: 20px; right: 20px; pointer-events: none; z-index: 2000; }
         #scoreDisplay { font-size: 36px; color: #0f0; font-family: monospace; font-weight: bold; float: right; text-shadow: 0 0 15px #0f0; }
         #speedo { color: #fff; font-size: 20px; font-weight: bold; clear: both; float: right; margin-top: 5px; font-family: monospace; }
@@ -36,16 +30,13 @@
     <div id="start-screen">
         <div class="title">亡命飆速</div>
         <div class="warning-text">🚨 警告：前方警方已設下強力路障！</div>
-        
         <div class="setting-group">
-            <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
                 <button id="ctrl-touch" class="opt-btn active" onclick="setSetting('ctrl', 'touch')">鍵盤 / 觸控</button>
                 <button id="ctrl-tilt" class="opt-btn" onclick="setSetting('ctrl', 'tilt')">手機體感</button>
             </div>
         </div>
         <div class="setting-group">
-            <div class="setting-label">🛡️ 挑戰難度</div>
             <div class="option-group">
                 <button id="diff-1" class="opt-btn active" onclick="setSetting('diff', 1)">簡單</button>
                 <button id="diff-2" class="opt-btn" onclick="setSetting('diff', 2)">普通</button>
@@ -53,13 +44,12 @@
             </div>
         </div>
         <div class="setting-group">
-            <div class="setting-label">🔥 遊戲模式</div>
             <div class="option-group">
                 <button id="mode-hard" class="opt-btn active" onclick="setSetting('mode', 'hard')">💀 一撞即死</button>
                 <button id="mode-easy" class="opt-btn" onclick="setSetting('mode', 'easy')">❤️ 護甲模式</button>
             </div>
         </div>
-        <button id="start-btn" class="start-btn" disabled onclick="handleStart()">資源載入中...</button>
+        <button id="start-btn" class="start-btn" disabled onclick="handleStart()">最終校準中...</button>
     </div>
 
     <div id="ui-layer">
@@ -73,8 +63,8 @@
 
     <script>
         let scene, camera, renderer, car, grassPlane, gameStarted = false, score = 0;
-        let obstacles = [], decor = [], roadLines = [];
-        let obsCarModels = {}, streetLightPool = [], snowmanModel = null;
+        let obstacles = [], decor = [];
+        let obsCarModels = {}, streetLightTemplate = null;
         let decorPool = { 0: [], 1: [], 2: [], 3: [] };
         let policeLightR, policeLightB; 
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
@@ -107,8 +97,8 @@
                     updateSeasons(); 
                 }
             }, 100);
-            setInterval(createObstacle, 1100 - (settings.diff * 100)); 
-            setInterval(createDecor, 450); 
+            setInterval(createObstacle, 1000 - (settings.diff * 100)); 
+            setInterval(createDecor, 350); 
         }
 
         function init3D() {
@@ -121,8 +111,8 @@
             renderer.outputEncoding = THREE.sRGBEncoding;
             document.body.appendChild(renderer.domElement);
 
-            scene.add(new THREE.AmbientLight(0xffffff, 1.4));
-            const sun = new THREE.DirectionalLight(0xffffff, 1.0);
+            scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+            const sun = new THREE.DirectionalLight(0xffffff, 1.2);
             sun.position.set(10, 50, 10); scene.add(sun);
 
             const road = new THREE.Mesh(new THREE.PlaneGeometry(22, 2000), new THREE.MeshPhongMaterial({ color: 0x222222 }));
@@ -135,13 +125,13 @@
             scene.add(policeLightR, policeLightB);
 
             const loader = new THREE.GLTFLoader();
-            loader.load('car.glb', (gltf) => { car = gltf.scene; fixMat(car); car.scale.set(4.5, 4.5, 4.5); scene.add(car); car.position.z = 15; checkLoaded(); });
+            loader.load('car.glb', (gltf) => { car = gltf.scene; car.scale.set(4.5, 4.5, 4.5); scene.add(car); car.position.z = 15; checkLoaded(); });
 
             ['car1.glb','car2.glb','car3.glb','car4.glb','car5.glb','car6.glb'].forEach(f => {
-                loader.load(f, (g) => { fixMat(g.scene); if(f==='car6.glb') g.scene.scale.set(1.8, 1.8, 1.8); else g.scene.scale.set(3.2, 3.2, 3.2); obsCarModels[f] = g.scene; checkLoaded(); });
+                loader.load(f, (g) => { if(f==='car6.glb') g.scene.scale.set(1.8, 1.8, 1.8); else g.scene.scale.set(3.2, 3.2, 3.2); obsCarModels[f] = g.scene; checkLoaded(); });
             });
 
-            // 🌳 樹木解包邏輯
+            // 💡 路邊裝飾：暫時減少樹木機率，專注路燈
             const unpack = (file, indices) => {
                 loader.load(file, (gltf) => {
                     gltf.scene.traverse(node => {
@@ -158,37 +148,31 @@
             unpack('pine_trees_pack__ps1_low_poly.glb', [2]);
             unpack('snowy_pine_trees_pack__ps1_low_poly.glb', [3]);
             
-            // 💡 路燈最終必殺修復：強制所有零件可見並換金屬白材質
+            // 💡 路燈：暴力處理中心點與材質
             loader.load('Street_Light.glb', (gltf) => { 
+                const group = new THREE.Group();
                 gltf.scene.traverse(node => {
                     if(node.isMesh) {
                         const m = node.clone();
+                        // 關鍵：強迫模型幾何正中心對齊座標 (0,0,0)
+                        if (m.geometry) m.geometry.center(); 
                         m.material = new THREE.MeshStandardMaterial({ 
-                            color: 0xdddddd, 
-                            roughness: 0.3, 
-                            metalness: 0.7 
+                            color: 0xffffff, // 純白柱子
+                            emissive: 0x555555,
+                            metalness: 0.8,
+                            roughness: 0.2
                         });
-                        m.visible = true;
-                        streetLightPool.push(m);
+                        group.add(m);
                     }
                 });
+                streetLightTemplate = group;
                 checkLoaded(); 
             });
-            loader.load('Snowman.glb', (g) => { fixMat(g.scene); snowmanModel = g.scene; checkLoaded(); });
 
             camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
         }
 
-        function fixMat(m) { 
-            m.traverse(n => { 
-                if(n.isMesh) { 
-                    n.material.transparent = false; 
-                    n.material.depthWrite = true;
-                    n.visible = true;
-                } 
-            }); 
-        }
-
+        function fixMat(m) { m.traverse(n => { if(n.isMesh) { n.material.transparent = false; n.material.depthWrite = true; n.visible = true; } }); }
         function checkLoaded() { loadedCount++; if(loadedCount >= totalToLoad) { document.getElementById('start-btn').disabled = false; document.getElementById('start-btn').innerText = "進入賽道"; } }
 
         function createObstacle() {
@@ -206,26 +190,20 @@
             const idx = Math.floor(score / 200) % 4;
             const side = Math.random() > 0.5 ? 1 : -1;
             let item = null;
-            const rand = Math.random();
 
-            // 💡 路燈出現率 30%，比例調大至 8.0
-            if (rand < 0.3 && streetLightPool.length > 0) {
-                item = streetLightPool[Math.floor(Math.random() * streetLightPool.length)].clone();
-                item.scale.set(8.0, 8.0, 8.0);
+            // 💡 路燈：提升到 70% 生成機率，直到我們看見它為止
+            if (streetLightTemplate && Math.random() < 0.7) {
+                item = streetLightTemplate.clone();
+                item.scale.set(10.0, 10.0, 10.0); // 巨大化柱子
+                item.position.set(side * 8.5, 5, -200); // 高度拉高一點避免埋土
                 item.rotation.y = (side > 0) ? 0 : Math.PI;
-            } else if (idx === 3 && rand < 0.45 && snowmanModel) {
-                item = snowmanModel.clone();
-                item.scale.set(1.5, 1.5, 1.5);
             } else if (decorPool[idx].length > 0) {
                 item = decorPool[idx][Math.floor(Math.random() * decorPool[idx].length)].clone();
                 item.scale.set(0.15, 0.15, 0.15);
+                item.position.set(side * 14, 0, -200);
             }
             
-            if (item) {
-                // 將物件位置固定在路邊 (x: 9.5)
-                item.position.set(side * 9.5, 0, -200); 
-                scene.add(item); decor.push(item);
-            }
+            if (item) { scene.add(item); decor.push(item); }
         }
 
         function updateHPBar() { document.getElementById('hp-bar').style.width = hp + "%"; }
@@ -235,42 +213,28 @@
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
             car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
-
-            // 警燈：純點光源閃爍，高度調高到 4.6 避開馬路
             let flash = Math.floor(Date.now() / 150) % 2;
-            policeLightR.intensity = flash === 0 ? 80 : 0;
-            policeLightB.intensity = flash === 1 ? 80 : 0;
-            policeLightR.position.set(car.position.x - 0.7, 4.6, car.position.z);
-            policeLightB.position.set(car.position.x + 0.7, 4.6, car.position.z);
-
+            policeLightR.intensity = flash === 0 ? 100 : 0;
+            policeLightB.intensity = flash === 1 ? 100 : 0;
+            policeLightR.position.set(car.position.x - 0.7, 4.5, car.position.z);
+            policeLightB.position.set(car.position.x + 0.7, 4.5, car.position.z);
             decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); }});
             obstacles.forEach((obs, i) => {
                 obs.position.z += currentSpeed;
                 if (Math.abs(car.position.z - obs.position.z) < 1.3 && Math.abs(car.position.x - obs.position.x) < 1.0) {
                     document.getElementById('crashSound').play();
-                    if (settings.mode === 'easy') {
-                        hp -= 34; updateHPBar(); scene.remove(obs); obstacles.splice(i, 1);
-                        if (hp <= 0) endGame();
-                    } else { endGame(); }
+                    if (settings.mode === 'easy') { hp -= 34; updateHPBar(); scene.remove(obs); obstacles.splice(i, 1); if (hp <= 0) endGame(); } else { endGame(); }
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
             renderer.render(scene, camera);
         }
-
         function endGame() { gameStarted = false; setTimeout(() => { alert("💥 任務結束！得分: " + score); location.reload(); }, 100); }
-
         function updateSeasons() {
             const idx = Math.floor(score / 200) % 4;
-            const sky = [0x87CEEB, 0x00BFFF, 0xFFA500, 0xE0F7FA];
-            const grass = [0x7cfc00, 0x228b22, 0xdaa520, 0xffffff];
-            if(scene) {
-                scene.background.setHex(sky[idx]);
-                scene.fog.color.setHex(sky[idx]);
-                grassPlane.material.color.setHex(grass[idx]);
-            }
+            const sky = [0x87CEEB, 0x00BFFF, 0xFFA500, 0xE0F7FA], grass = [0x7cfc00, 0x228b22, 0xdaa520, 0xffffff];
+            if(scene) { scene.background.setHex(sky[idx]); scene.fog.color.setHex(sky[idx]); grassPlane.material.color.setHex(grass[idx]); }
         }
-
         function initControls() {
             const l = () => { if (currentLaneIndex > 0) { currentLaneIndex--; targetX = lanes[currentLaneIndex]; } };
             const r = () => { if (currentLaneIndex < 2) { currentLaneIndex++; targetX = lanes[currentLaneIndex]; } };
