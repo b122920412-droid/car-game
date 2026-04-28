@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 四季生態完整修正版</title>
+    <title>亡命飆速 - 生態多樣性修正版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -30,7 +30,7 @@
 
     <div id="start-screen">
         <div class="title">亡命飆速</div>
-        <div class="warning-text">🚨 系統校正完成！全速前進！</div>
+        <div class="warning-text">🚨 季節切換已校準！準備出發！</div>
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -68,7 +68,7 @@
     <script>
         let scene, camera, renderer, car, grassPlane, gameStarted = false, score = 0;
         let obstacles = [], decor = [], roadLines = [];
-        let obsCarModels = {}, decorModels = { 0: [], 1: [], 2: [], 3: [] }, streetLightModel;
+        let obsCarModels = {}, decorModels = { 0: [], 1: [], 2: [], 3: [] }, streetLightModel, snowmanModel;
         let policeLightR, policeLightB; 
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let currentSpeed = 1.0, hp = 100;
@@ -124,7 +124,6 @@
             grassPlane = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshPhongMaterial({ color: 0x7cfc00 }));
             grassPlane.rotation.x = -Math.PI / 2; grassPlane.position.y = -0.15; scene.add(grassPlane);
 
-            // 💡 加入警燈光源
             policeLightR = new THREE.PointLight(0xff0000, 0, 50);
             policeLightB = new THREE.PointLight(0x0000ff, 0, 50);
             scene.add(policeLightR, policeLightB);
@@ -143,17 +142,29 @@
                 }, undefined, () => checkLoaded());
             });
 
+            // 💡 裝飾品載入與拆解邏輯
             loader.load('birch_trees_pack__ps1_low_poly.glb', (g) => { splitPack(g.scene, 0); splitPack(g.scene, 1); checkLoaded(); });
             loader.load('pine_trees_pack__ps1_low_poly.glb', (g) => { splitPack(g.scene, 2); checkLoaded(); });
             loader.load('snowy_pine_trees_pack__ps1_low_poly.glb', (g) => { splitPack(g.scene, 3); checkLoaded(); });
-            loader.load('Snowman.glb', (g) => { fixMat(g.scene); decorModels[3].push(g.scene); checkLoaded(); });
+            loader.load('Snowman.glb', (g) => { fixMat(g.scene); snowmanModel = g.scene; checkLoaded(); });
             loader.load('Street_Light.glb', (g) => { fixMat(g.scene); streetLightModel = g.scene; checkLoaded(); });
 
             camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
         }
 
         function fixMat(m) { m.traverse(n => { if(n.isMesh) { n.material.transparent = false; n.material.opacity = 1; n.material.depthWrite = true; } }); }
-        function splitPack(s, i) { s.traverse(n => { if(n.isMesh) { fixMat(n); decorModels[i].push(n); } }); }
+        
+        // 💡 修正拆解函數：確保拿到真正的子樹
+        function splitPack(sceneObj, seasonIdx) {
+            sceneObj.traverse(child => {
+                if(child.isMesh) {
+                    const variant = child.clone();
+                    fixMat(variant);
+                    decorModels[seasonIdx].push(variant);
+                }
+            });
+        }
+
         function checkLoaded() { loadedCount++; if(loadedCount >= totalToLoad) { document.getElementById('start-btn').disabled = false; document.getElementById('start-btn').innerText = "進入賽道"; } }
 
         function createObstacle() {
@@ -172,22 +183,23 @@
             const side = Math.random() > 0.5 ? 1 : -1;
             let item;
             
-            // 💡 降低生成機率並讓物件靠近馬路
-            if (Math.random() < 0.12 && streetLightModel) {
+            // 💡 提高特殊物件生成率
+            const rand = Math.random();
+            if (rand < 0.15 && streetLightModel) {
                 item = streetLightModel.clone();
                 item.scale.set(2.5, 2.5, 2.5);
                 item.rotation.y = (side > 0) ? 0 : Math.PI;
+            } else if (idx === 3 && rand < 0.3 && snowmanModel) { // 冬天才有雪人
+                item = snowmanModel.clone();
+                item.scale.set(1.5, 1.5, 1.5);
             } else if (decorModels[idx].length > 0) {
                 item = decorModels[idx][Math.floor(Math.random() * decorModels[idx].length)].clone();
-                // 💡 調整樹木與雪人的比例
-                let isSnowman = item.name && item.name.toLowerCase().includes("snowman");
-                let s = isSnowman ? 1.5 : 0.5;
-                item.scale.set(s, s, s);
+                item.scale.set(0.6, 0.6, 0.6); // 💡 縮小整包樹木的比例
             }
             
             if (item) {
-                // 💡 關鍵修正：將側邊生成範圍從 13 改為 8~12，這樣才會出現在路邊
-                item.position.set(side * (Math.random() * 4 + 8), 0, -200);
+                // 💡 座標修正：讓它們更靠近馬路 (8~11)
+                item.position.set(side * (Math.random() * 3 + 8), 0, -200);
                 scene.add(item); decor.push(item);
             }
         }
@@ -200,12 +212,12 @@
             car.position.x += (targetX - car.position.x) * 0.15;
             car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
 
-            // 💡 警燈閃爍動畫
+            // 💡 警燈座標上調
             let flash = Math.floor(Date.now() / 150) % 2;
-            policeLightR.intensity = flash === 0 ? 40 : 0;
-            policeLightB.intensity = flash === 1 ? 40 : 0;
-            policeLightR.position.set(car.position.x - 1, 3, car.position.z);
-            policeLightB.position.set(car.position.x + 1, 3, car.position.z);
+            policeLightR.intensity = flash === 0 ? 45 : 0;
+            policeLightB.intensity = flash === 1 ? 45 : 0;
+            policeLightR.position.set(car.position.x - 1, 4, car.position.z);
+            policeLightB.position.set(car.position.x + 1, 4, car.position.z);
 
             decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); }});
             obstacles.forEach((obs, i) => {
@@ -226,7 +238,7 @@
 
         function updateSeasons() {
             const idx = Math.floor(score / 200) % 4;
-            const sky = [0x87CEEB, 0x00BFFF, 0xFFA500, 0xE0F7FA]; // 春、夏、秋、冬
+            const sky = [0x87CEEB, 0x00BFFF, 0xFFA500, 0xE0F7FA];
             const grass = [0x7cfc00, 0x228b22, 0xdaa520, 0xffffff];
             if(scene) {
                 scene.background.setHex(sky[idx]);
