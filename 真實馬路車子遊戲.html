@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 四季生態系整合版</title>
+    <title>亡命飆速 - 環境比例修復版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -27,7 +27,7 @@
 <body>
     <div id="start-screen">
         <div class="title">亡命飆速</div>
-        <div class="warning-text">🚨 四季輪轉，生死飆速！</div>
+        <div class="warning-text">🚨 系統校正完成！全速前進！</div>
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -68,16 +68,14 @@
     <script>
         let scene, camera, renderer, car, grassPlane, gameStarted = false, score = 0;
         let obstacles = [], decor = [], roadLines = [];
-        let obsCarModels = {};
-        // 💡 建立四季物件儲存庫 (0:春, 1:夏, 2:秋, 3:冬)
+        let obsCarModels = {}; 
         let decorModels = { 0: [], 1: [], 2: [], 3: [] };
         let streetLightModel;
-        
+        let policeLightR, policeLightB; 
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let currentSpeed = 1.2, hp = 100;
         let settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
         let loadedCount = 0;
-        // 💡 修正總載入數量：7台車 + 3個樹包 + 1個雪人 + 1個路燈 = 12
         const totalToLoad = 12; 
 
         function setSetting(type, val) {
@@ -112,7 +110,7 @@
                 }
             }, 100);
             setInterval(createObstacle, 1100); 
-            setInterval(createDecor, 400); // 💡 加快裝飾生成，讓風景更豐富
+            setInterval(createDecor, 500);
         }
 
         function init3D() {
@@ -132,7 +130,9 @@
             const road = new THREE.Mesh(new THREE.PlaneGeometry(22, 2000), new THREE.MeshPhongMaterial({ color: 0x333333 }));
             road.rotation.x = -Math.PI / 2; scene.add(road);
 
-            grassPlane = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshPhongMaterial({ color: 0x7cfc00 }));
+            const grassGeo = new THREE.PlaneGeometry(2000, 2000);
+            const grassMat = new THREE.MeshPhongMaterial({ color: 0x7cfc00 });
+            grassPlane = new THREE.Mesh(grassGeo, grassMat);
             grassPlane.rotation.x = -Math.PI / 2; grassPlane.position.y = -0.1; scene.add(grassPlane);
 
             for (let i = 0; i < 60; i++) {
@@ -148,7 +148,6 @@
 
             const loader = new THREE.GLTFLoader();
 
-            // 1. 載入車子
             loader.load('car.glb', (gltf) => { 
                 let model = gltf.scene; fixTransparent(model);
                 model.scale.set(4.5, 4.5, 4.5); model.rotation.y = 0;
@@ -164,20 +163,17 @@
                 }, undefined, (err) => { checkLoaded(); });
             });
 
-            // 2. 💡 載入四季裝飾品 (依照你上傳的檔名)
-            // 春夏使用 birch
+            // 🌳 載入四季裝飾
             loader.load('birch_trees_pack__ps1_low_poly.glb', (gltf) => {
                 gltf.scene.traverse(n => { if(n.isMesh) { fixTransparent(n); decorModels[0].push(n); decorModels[1].push(n); } });
                 checkLoaded();
             }, undefined, (err) => checkLoaded());
 
-            // 秋天使用 pine
             loader.load('pine_trees_pack__ps1_low_poly.glb', (gltf) => {
                 gltf.scene.traverse(n => { if(n.isMesh) { fixTransparent(n); decorModels[2].push(n); } });
                 checkLoaded();
             }, undefined, (err) => checkLoaded());
 
-            // 冬天使用 snowy_pine 和 snowman
             loader.load('snowy_pine_trees_pack__ps1_low_poly.glb', (gltf) => {
                 gltf.scene.traverse(n => { if(n.isMesh) { fixTransparent(n); decorModels[3].push(n); } });
                 checkLoaded();
@@ -185,14 +181,13 @@
 
             loader.load('Snowman.glb', (gltf) => {
                 let model = gltf.scene; fixTransparent(model);
-                model.scale.set(2, 2, 2); decorModels[3].push(model);
+                model.scale.set(1, 1, 1); decorModels[3].push(model);
                 checkLoaded();
             }, undefined, (err) => checkLoaded());
 
-            // 路燈 (全季節出現)
             loader.load('Street_Light.glb', (gltf) => {
                 let model = gltf.scene; fixTransparent(model);
-                model.scale.set(4, 4, 4); streetLightModel = model;
+                model.scale.set(2, 2, 2); streetLightModel = model;
                 checkLoaded();
             }, undefined, (err) => checkLoaded());
 
@@ -217,24 +212,25 @@
             let randomKey = keys[Math.floor(Math.random() * keys.length)];
             let carClone = obsCarModels[randomKey].clone();
             carClone.rotation.y = (randomKey === 'car6.glb') ? 0 : Math.PI / 2;
-            carClone.position.set(lanes[Math.floor(Math.random() * 3)], 0, -120);
+            carClone.position.set(lanes[Math.floor(Math.random() * 3)], 0, -150);
             scene.add(carClone); obstacles.push(carClone);
         }
 
-        // 💡 升級裝飾生成邏輯
         function createDecor() {
             if (!gameStarted) return;
             const seasonIdx = Math.floor(score / 200) % 4;
             const side = Math.random() > 0.5 ? 1 : -1;
             let item;
 
-            // 15% 機率生成路燈，其餘生成當季裝飾
             if (Math.random() < 0.15 && streetLightModel) {
                 item = streetLightModel.clone();
-                item.rotation.y = (side > 0) ? 0 : Math.PI; // 路燈面向馬路
+                item.rotation.y = (side > 0) ? 0 : Math.PI;
+                item.scale.set(2.5, 2.5, 2.5); // 💡 路燈比例
             } else if (decorModels[seasonIdx].length > 0) {
                 item = decorModels[seasonIdx][Math.floor(Math.random() * decorModels[seasonIdx].length)].clone();
-                item.scale.set(4, 4, 4);
+                // 💡 關鍵修正：樹包比例從 4 降到 0.5，雪人比例降到 0.8
+                let s = item.name.includes("Snowman") ? 0.8 : 0.5;
+                item.scale.set(s, s, s);
             }
 
             if (item) {
