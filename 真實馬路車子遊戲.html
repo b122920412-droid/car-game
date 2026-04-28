@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 路燈原裝回歸版</title>
+    <title>亡命飆速 - 真實路燈佈局版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #0b0b1a; font-family: 'Segoe UI', Arial, sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a3a, #050510); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; color: white; text-align: center; }
@@ -18,7 +18,7 @@
         .start-btn { padding: 20px 80px; font-size: 26px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: 900; margin-top: 30px; box-shadow: 0 10px 30px rgba(0,123,255,0.4); }
         .start-btn:disabled { background: #333; cursor: wait; opacity: 0.6; }
         #ui-layer { position: absolute; top: 25px; left: 25px; right: 25px; pointer-events: none; z-index: 2000; }
-        #scoreDisplay { font-size: 42px; color: #0f0; font-family: monospace; font-weight: bold; float: right; text-shadow: 0 0 15px #0f0; }
+        #scoreDisplay { font-size: 42px; color: #0f0; font-family: monospace; font-weight: bold; float: right; }
     </style>
 </head>
 <body>
@@ -52,10 +52,9 @@
     <script>
         let scene, camera, renderer, car, grassPlane, gameStarted = false, score = 0;
         let obstacles = [], decor = [], streetLightModel = null;
-        let obsCarModels = {}, decorPool = { 0: [], 1: [], 2: [], 3: [] };
+        let decorPool = { 0: [], 1: [], 2: [], 3: [] };
         let policeLightR, policeLightB, lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
-        let currentSpeed = 1.0, settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
-        let loadedCount = 0, totalToLoad = 12;
+        let currentSpeed = 1.0, loadedCount = 0, totalToLoad = 12;
 
         function setSetting(type, val) {
             settings[type] = val;
@@ -67,11 +66,11 @@
             document.getElementById('bgm').play().catch(e => {});
             gameStarted = true;
             document.getElementById('start-screen').style.display = 'none';
-            currentSpeed = 0.8 + (settings.diff * 0.4); 
+            currentSpeed = 0.8 + (1 * 0.4); 
             initControls(); animate();
             setInterval(() => { if(gameStarted) { score++; currentSpeed += 0.002; document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0'); updateSeasons(); } }, 100);
-            setInterval(createObstacle, 1100 - (settings.diff * 100)); 
-            setInterval(createPairs, 450); 
+            setInterval(createObstacle, 1100); 
+            setInterval(createPairs, 500); 
         }
 
         function init3D() {
@@ -98,27 +97,30 @@
             loader.load('car.glb', (g) => { car = g.scene; car.scale.set(4.5, 4.5, 4.5); scene.add(car); car.position.z = 15; checkLoaded(); });
 
             ['car1.glb','car2.glb','car3.glb','car4.glb','car5.glb','car6.glb'].forEach(f => {
-                loader.load(f, (g) => { 
-                    if(f==='car6.glb') g.scene.scale.set(1.8, 1.8, 1.8); else g.scene.scale.set(3.2, 3.2, 3.2);
-                    obsCarModels[f] = g.scene; checkLoaded(); 
-                }, undefined, () => checkLoaded());
+                loader.load(f, (g) => { obsCarModels[f] = g.scene; checkLoaded(); }, undefined, () => checkLoaded());
             });
 
-            const unpack = (file, indices) => {
+            const unpackTrees = (file, indices) => {
                 loader.load(file, (gltf) => {
                     gltf.scene.traverse(node => { if (node.isMesh) { const clone = node.clone(); indices.forEach(idx => decorPool[idx].push(clone)); } });
                     checkLoaded();
                 });
             };
-            unpack('birch_trees_pack__ps1_low_poly.glb', [0, 1]);
-            unpack('pine_trees_pack__ps1_low_poly.glb', [2]);
-            unpack('snowy_pine_trees_pack__ps1_low_poly.glb', [3]);
+            unpackTrees('birch_trees_pack__ps1_low_poly.glb', [0, 1]);
+            unpackTrees('pine_trees_pack__ps1_low_poly.glb', [2]);
+            unpackTrees('snowy_pine_trees_pack__ps1_low_poly.glb', [3]);
             
-            // 💡 直接載入路燈模型，不做任何材質修改
+            // 💡 讀取新路燈模型：原裝置入
             loader.load('nintendogs_street_light.glb', (g) => { 
                 streetLightModel = g.scene;
                 checkLoaded(); 
             }, undefined, () => checkLoaded());
+
+            // 💡 逾時解鎖：如果 6 秒還在轉圈，強行開啟
+            setTimeout(() => { 
+                const btn = document.getElementById('start-btn');
+                if (btn.disabled) { btn.disabled = false; btn.innerText = "進入賽道 (資源已強制就緒)"; }
+            }, 6000);
 
             camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
         }
@@ -134,27 +136,31 @@
             scene.add(c); obstacles.push(c);
         }
 
-        // 💡 左右對稱規律生成
+        // 💡 模擬真實道路：左右成對出現
         function createPairs() {
             if (!gameStarted) return;
             const idx = Math.floor(score / 200) % 4;
             
-            // 每隔一段距離生成一對路燈
+            // 規律生成路燈：每 25 分生成一對
             if (score % 25 === 0 && streetLightModel) {
                 [-1, 1].forEach(side => {
                     let s = streetLightModel.clone();
-                    s.scale.set(0.4, 0.4, 0.4); // 💡 Nintendogs 模型縮小至 0.4 倍
+                    s.scale.set(0.35, 0.35, 0.35); // 💡 原裝比例校準
                     s.position.set(side * 9.5, 0, -220); 
                     s.rotation.y = side > 0 ? 0 : Math.PI;
                     scene.add(s); decor.push(s);
                 });
             } else if (decorPool[idx].length > 0) {
-                [-1, 1].forEach(side => {
-                    let t = decorPool[idx][Math.floor(Math.random() * decorPool[idx].length)].clone();
-                    t.scale.set(0.18, 0.18, 0.18);
-                    t.position.set(side * (Math.random() * 4 + 13), 0, -220);
-                    scene.add(t); decor.push(t);
-                });
+                // 每 15 分生成一對樹木
+                if (score % 15 === 0) {
+                    const treeBase = decorPool[idx][Math.floor(Math.random() * decorPool[idx].length)];
+                    [-1, 1].forEach(side => {
+                        let t = treeBase.clone();
+                        t.scale.set(0.18, 0.18, 0.18);
+                        t.position.set(side * 14.5, 0, -220);
+                        scene.add(t); decor.push(t);
+                    });
+                }
             }
         }
 
@@ -170,7 +176,9 @@
             decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); }});
             obstacles.forEach((obs, i) => {
                 obs.position.z += currentSpeed;
-                if (Math.abs(car.position.z - obs.position.z) < 1.3 && Math.abs(car.position.x - obs.position.x) < 1.0) endGame();
+                if (Math.abs(car.position.z - obs.position.z) < 1.3 && Math.abs(car.position.x - obs.position.x) < 1.0) {
+                    document.getElementById('crashSound').play(); endGame();
+                }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
             renderer.render(scene, camera);
