@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 音效修復整合版</title>
+    <title>亡命飆速 - 四季生態完整修正版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a2e, #000); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; text-align: center; color: white; }
@@ -25,16 +25,12 @@
     </style>
 </head>
 <body>
-    <audio id="bgm" loop preload="auto">
-        <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" type="audio/mpeg">
-    </audio>
-    <audio id="crashSound" preload="auto">
-        <source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" type="audio/ogg">
-    </audio>
+    <audio id="bgm" loop preload="auto"><source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" type="audio/mpeg"></audio>
+    <audio id="crashSound" preload="auto"><source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" type="audio/ogg"></audio>
 
     <div id="start-screen">
         <div class="title">亡命飆速</div>
-        <div class="warning-text">🚨 系統校正完成！音樂就緒！</div>
+        <div class="warning-text">🚨 系統校正完成！全速前進！</div>
         <div class="setting-group">
             <div class="setting-label">🕹️ 操作模式</div>
             <div class="option-group">
@@ -73,6 +69,7 @@
         let scene, camera, renderer, car, grassPlane, gameStarted = false, score = 0;
         let obstacles = [], decor = [], roadLines = [];
         let obsCarModels = {}, decorModels = { 0: [], 1: [], 2: [], 3: [] }, streetLightModel;
+        let policeLightR, policeLightB; 
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let currentSpeed = 1.0, hp = 100;
         let settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
@@ -86,23 +83,13 @@
         }
 
         async function handleStart() {
-            // 💡 點擊「進入賽道」時同時啟動音訊與體感權限
-            const bgm = document.getElementById('bgm');
-            bgm.play().catch(e => console.log("等待互動中..."));
-            
+            document.getElementById('bgm').play().catch(e => {});
             if (settings.ctrl === 'tilt' && typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
                 try { await DeviceOrientationEvent.requestPermission(); } catch (e) {}
             }
-            requestAndStart();
-        }
-
-        function requestAndStart() {
             gameStarted = true;
             document.getElementById('start-screen').style.display = 'none';
-            if (settings.mode === 'easy') {
-                document.getElementById('hp-container').style.display = 'block';
-                hp = 100; updateHPBar();
-            }
+            if (settings.mode === 'easy') { document.getElementById('hp-container').style.display = 'block'; hp = 100; updateHPBar(); }
             currentSpeed = 0.8 + (settings.diff * 0.4); 
             initControls(); animate();
             setInterval(() => {
@@ -137,17 +124,15 @@
             grassPlane = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshPhongMaterial({ color: 0x7cfc00 }));
             grassPlane.rotation.x = -Math.PI / 2; grassPlane.position.y = -0.15; scene.add(grassPlane);
 
-            for (let i = 0; i < 60; i++) {
-                const line = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 7), new THREE.MeshBasicMaterial({ color: 0xcccccc }));
-                line.rotation.x = -Math.PI / 2; line.position.set(-1.8, 0.05, -i * 12);
-                scene.add(line); roadLines.push(line);
-                const line2 = line.clone(); line2.position.x = 1.8; scene.add(line2); roadLines.push(line2);
-            }
+            // 💡 加入警燈光源
+            policeLightR = new THREE.PointLight(0xff0000, 0, 50);
+            policeLightB = new THREE.PointLight(0x0000ff, 0, 50);
+            scene.add(policeLightR, policeLightB);
 
             const loader = new THREE.GLTFLoader();
             loader.load('car.glb', (gltf) => { 
-                let m = gltf.scene; fixMat(m); m.scale.set(4.5, 4.5, 4.5); 
-                car = new THREE.Group(); car.add(m); scene.add(car); car.position.z = 15; checkLoaded(); 
+                car = gltf.scene; fixMat(car); car.scale.set(4.5, 4.5, 4.5); 
+                scene.add(car); car.position.z = 15; checkLoaded(); 
             });
 
             ['car1.glb','car2.glb','car3.glb','car4.glb','car5.glb','car6.glb'].forEach(f => {
@@ -158,11 +143,10 @@
                 }, undefined, () => checkLoaded());
             });
 
-            // 💡 檔名精確修正
             loader.load('birch_trees_pack__ps1_low_poly.glb', (g) => { splitPack(g.scene, 0); splitPack(g.scene, 1); checkLoaded(); });
             loader.load('pine_trees_pack__ps1_low_poly.glb', (g) => { splitPack(g.scene, 2); checkLoaded(); });
             loader.load('snowy_pine_trees_pack__ps1_low_poly.glb', (g) => { splitPack(g.scene, 3); checkLoaded(); });
-            loader.load('Snowman.glb', (g) => { fixMat(g.scene); g.scene.scale.set(1,1,1); decorModels[3].push(g.scene); checkLoaded(); });
+            loader.load('Snowman.glb', (g) => { fixMat(g.scene); decorModels[3].push(g.scene); checkLoaded(); });
             loader.load('Street_Light.glb', (g) => { fixMat(g.scene); streetLightModel = g.scene; checkLoaded(); });
 
             camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
@@ -187,16 +171,25 @@
             const idx = Math.floor(score / 200) % 4;
             const side = Math.random() > 0.5 ? 1 : -1;
             let item;
-            if (Math.random() < 0.15 && streetLightModel) {
+            
+            // 💡 降低生成機率並讓物件靠近馬路
+            if (Math.random() < 0.12 && streetLightModel) {
                 item = streetLightModel.clone();
-                item.scale.set(2.2, 2.2, 2.2);
+                item.scale.set(2.5, 2.5, 2.5);
                 item.rotation.y = (side > 0) ? 0 : Math.PI;
             } else if (decorModels[idx].length > 0) {
                 item = decorModels[idx][Math.floor(Math.random() * decorModels[idx].length)].clone();
-                let s = (item.name && item.name.toLowerCase().includes("snowman")) ? 0.8 : 0.45;
+                // 💡 調整樹木與雪人的比例
+                let isSnowman = item.name && item.name.toLowerCase().includes("snowman");
+                let s = isSnowman ? 1.5 : 0.5;
                 item.scale.set(s, s, s);
             }
-            if (item) { item.position.set(side * (Math.random() * 5 + 13), 0, -200); scene.add(item); decor.push(item); }
+            
+            if (item) {
+                // 💡 關鍵修正：將側邊生成範圍從 13 改為 8~12，這樣才會出現在路邊
+                item.position.set(side * (Math.random() * 4 + 8), 0, -200);
+                scene.add(item); decor.push(item);
+            }
         }
 
         function updateHPBar() { document.getElementById('hp-bar').style.width = hp + "%"; }
@@ -206,14 +199,19 @@
             requestAnimationFrame(animate);
             car.position.x += (targetX - car.position.x) * 0.15;
             car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
-            roadLines.forEach(l => { l.position.z += currentSpeed; if(l.position.z > 40) l.position.z = -200; });
+
+            // 💡 警燈閃爍動畫
+            let flash = Math.floor(Date.now() / 150) % 2;
+            policeLightR.intensity = flash === 0 ? 40 : 0;
+            policeLightB.intensity = flash === 1 ? 40 : 0;
+            policeLightR.position.set(car.position.x - 1, 3, car.position.z);
+            policeLightB.position.set(car.position.x + 1, 3, car.position.z);
+
             decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); }});
             obstacles.forEach((obs, i) => {
                 obs.position.z += currentSpeed;
                 if (Math.abs(car.position.z - obs.position.z) < 1.3 && Math.abs(car.position.x - obs.position.x) < 1.0) {
-                    // 💡 播放撞擊聲
                     document.getElementById('crashSound').play();
-                    
                     if (settings.mode === 'easy') {
                         hp -= 34; updateHPBar(); scene.remove(obs); obstacles.splice(i, 1);
                         if (hp <= 0) endGame();
@@ -223,18 +221,26 @@
             });
             renderer.render(scene, camera);
         }
+
         function endGame() { gameStarted = false; setTimeout(() => { alert("💥 任務結束！得分: " + score); location.reload(); }, 100); }
+
         function updateSeasons() {
             const idx = Math.floor(score / 200) % 4;
-            const sky = [0x87CEEB, 0xfff9c4, 0xffcc80, 0xd1d9e6], grass = [0x7cfc00, 0x228b22, 0xdaa520, 0xffffff];
-            if(scene) { scene.background.setHex(sky[idx]); scene.fog.color.setHex(sky[idx]); grassPlane.material.color.setHex(grass[idx]); }
+            const sky = [0x87CEEB, 0x00BFFF, 0xFFA500, 0xE0F7FA]; // 春、夏、秋、冬
+            const grass = [0x7cfc00, 0x228b22, 0xdaa520, 0xffffff];
+            if(scene) {
+                scene.background.setHex(sky[idx]);
+                scene.fog.color.setHex(sky[idx]);
+                grassPlane.material.color.setHex(grass[idx]);
+            }
         }
+
         function initControls() {
             const l = () => { if (currentLaneIndex > 0) { currentLaneIndex--; targetX = lanes[currentLaneIndex]; } };
             const r = () => { if (currentLaneIndex < 2) { currentLaneIndex++; targetX = lanes[currentLaneIndex]; } };
             window.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') l(); if (e.key === 'ArrowRight') r(); });
             window.addEventListener('touchstart', (e) => { if (!gameStarted || settings.ctrl !== 'touch') return; if (e.touches[0].clientX < window.innerWidth / 2) l(); else r(); });
-            window.addEventListener('deviceorientation', (e) => { if (!gameStarted || settings.ctrl !== 'tilt') return; const tilt = e.gamma; if (tilt < -10) currentLaneIndex = 0; else if (tilt > 10) currentLaneIndex = 2; else currentLaneIndex = 1; targetX = lanes[currentLaneIndex]; });
+            window.addEventListener('deviceorientation', (e) => { if (!gameStarted || settings.ctrl !== 'tilt') return; const t = e.gamma; if (t < -10) currentLaneIndex = 0; else if (t > 10) currentLaneIndex = 2; else currentLaneIndex = 1; targetX = lanes[currentLaneIndex]; });
         }
         window.onload = init3D;
     </script>
