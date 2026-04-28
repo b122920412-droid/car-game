@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 完整收官版</title>
+    <title>亡命飆速 - 系統解鎖與路燈優化版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #0b0b1a; font-family: 'Segoe UI', Arial, sans-serif; touch-action: none; }
-        #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a3a, #050510); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; color: white; text-align: center; }
+        #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a3a, #050510); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 5000; color: white; text-align: center; }
         .title { font-size: 56px; font-weight: 900; letter-spacing: 6px; color: #fff; text-shadow: 0 0 30px #007bff; margin: 0; }
-        .warning-text { color: #ff4444; font-weight: bold; margin-bottom: 20px; letter-spacing: 2px; animation: blink 1.2s infinite; font-size: 18px; }
+        .warning-text { color: #ff4444; font-weight: bold; margin-bottom: 20px; letter-spacing: 2px; animation: blink 1.2s infinite; font-size: 20px; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         .setting-group { margin: 10px 0; display: flex; flex-direction: column; align-items: center; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 20px; width: 340px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
         .setting-label { font-size: 14px; color: #00d2ff; margin-bottom: 10px; font-weight: bold; }
@@ -17,7 +17,7 @@
         .opt-btn.active { background: #007bff; box-shadow: 0 0 20px #007bff; border-color: #00ffcc; }
         .start-btn { padding: 20px 80px; font-size: 26px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: 900; margin-top: 30px; box-shadow: 0 10px 30px rgba(0,123,255,0.4); }
         .start-btn:disabled { background: #333; cursor: wait; opacity: 0.6; }
-        #ui-layer { position: absolute; top: 25px; left: 25px; right: 25px; pointer-events: none; z-index: 2000; }
+        #ui-layer { position: absolute; top: 25px; left: 25px; right: 25px; pointer-events: none; z-index: 2000; display: none; }
         #scoreDisplay { font-size: 42px; color: #0f0; font-family: monospace; font-weight: bold; float: right; }
     </style>
 </head>
@@ -50,11 +50,11 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
     <script>
-        let scene, camera, renderer, car, road, grassPlane, gameStarted = false, score = 0;
+        let scene, camera, renderer, car, grassPlane, road, gameStarted = false, score = 0;
         let obstacles = [], decor = [], streetLightModel = null;
         let obsCarModels = {}, decorPool = { 0: [], 1: [], 2: [], 3: [] };
         let policeLightR, policeLightB, lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
-        let currentSpeed = 1.0, settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
+        let currentSpeed = 1.0, hp = 100, settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
         let loadedCount = 0, totalToLoad = 12;
 
         function setSetting(type, val) {
@@ -67,10 +67,11 @@
             document.getElementById('bgm').play().catch(e => {});
             gameStarted = true;
             document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('ui-layer').style.display = 'block';
             currentSpeed = 0.8 + (settings.diff * 0.4); 
             initControls(); animate();
             setInterval(() => { if(gameStarted) { score++; currentSpeed += 0.002; document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0'); updateSeasons(); } }, 100);
-            setInterval(createObstacle, 1000 - (settings.diff * 100)); // 💡 確保障礙車定時生成
+            setInterval(createObstacle, 1000 - (settings.diff * 100)); 
             setInterval(createPairs, 500); 
         }
 
@@ -97,28 +98,34 @@
             const loader = new THREE.GLTFLoader();
             loader.load('car.glb', (g) => { car = g.scene; car.scale.set(4.5, 4.5, 4.5); scene.add(car); car.position.z = 15; checkLoaded(); });
 
-            // 💡 修正障礙車載入
             ['car1.glb','car2.glb','car3.glb','car4.glb','car5.glb','car6.glb'].forEach(f => {
                 loader.load(f, (g) => { 
-                    g.scene.traverse(node => { if(node.isMesh) { node.material.transparent = false; node.material.depthWrite = true; } });
+                    g.scene.traverse(n => { if(n.isMesh) { n.material.transparent = false; n.material.depthWrite = true; } });
                     obsCarModels[f] = g.scene; checkLoaded(); 
-                }, undefined, () => checkLoaded());
+                }, undefined, () => checkLoaded()); // 失敗也增加，防止卡死
             });
 
-            const unpackTrees = (file, indices) => {
+            const unpack = (file, indices) => {
                 loader.load(file, (gltf) => {
                     gltf.scene.traverse(node => { if (node.isMesh) { const clone = node.clone(); indices.forEach(idx => decorPool[idx].push(clone)); } });
                     checkLoaded();
                 });
             };
-            unpackTrees('birch_trees_pack__ps1_low_poly.glb', [0, 1]);
-            unpackTrees('pine_trees_pack__ps1_low_poly.glb', [2]);
-            unpackTrees('snowy_pine_trees_pack__ps1_low_poly.glb', [3]);
+            unpack('birch_trees_pack__ps1_low_poly.glb', [0, 1]);
+            unpack('pine_trees_pack__ps1_low_poly.glb', [2]);
+            unpack('snowy_pine_trees_pack__ps1_low_poly.glb', [3]);
             
+            // 💡 直接載入新路燈模型
             loader.load('nintendogs_street_light.glb', (g) => { 
                 streetLightModel = g.scene;
                 checkLoaded(); 
             }, undefined, () => checkLoaded());
+
+            // 💡 強制解鎖按鈕：防止因為資源載入失敗而卡死
+            setTimeout(() => {
+                const btn = document.getElementById('start-btn');
+                if (btn.disabled) { btn.disabled = false; btn.innerText = "進入賽道"; }
+            }, 3000);
 
             camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
         }
@@ -142,7 +149,7 @@
             if (score % 25 === 0 && streetLightModel) {
                 [-1, 1].forEach(side => {
                     let s = streetLightModel.clone();
-                    s.scale.set(0.38, 0.38, 0.38); 
+                    s.scale.set(0.4, 0.4, 0.4); 
                     s.position.set(side * 9.5, 0, -220); 
                     s.rotation.y = side > 0 ? 0 : Math.PI;
                     scene.add(s); decor.push(s);
@@ -169,7 +176,6 @@
             policeLightB.intensity = (Math.floor(Date.now() / 150) % 2) === 1 ? 80 : 0;
             policeLightR.position.set(car.position.x - 0.7, 4.5, car.position.z);
             policeLightB.position.set(car.position.x + 0.7, 4.5, car.position.z);
-            
             decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); }});
             obstacles.forEach((obs, i) => {
                 obs.position.z += currentSpeed;
