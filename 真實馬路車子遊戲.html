@@ -28,7 +28,7 @@
 
     <div id="start-screen">
         <div class="title">亡命飆速</div>
-        <div class="warning-text">🚨 警告：前方警方已設下強力路障！</div>
+        <div class="warning-text">🚨 警告：盡全力逃避警方，小心車輛！</div>
         <div class="setting-group"><div class="setting-label">🕹️ 操作模式</div><div class="option-group">
             <button id="ctrl-touch" class="opt-btn active" onclick="setSetting('ctrl', 'touch')">鍵盤 / 觸控</button>
             <button id="ctrl-tilt" class="opt-btn" onclick="setSetting('ctrl', 'tilt')">手機體感</button>
@@ -193,7 +193,7 @@
             });
             renderer.render(scene, camera);
         }
-        function endGame() { gameStarted = false; setTimeout(() => { alert("💥 任務結束！得分: " + score); location.reload(); }, 100); }
+        function endGame() { gameStarted = false; setTimeout(() => { alert("💥 GG！得分: " + score); location.reload(); }, 100); }
         function updateSeasons() {
             const idx = Math.floor(score / 200) % 4;
             const sky = [0x87CEEB, 0x00BFFF, 0xFFA500, 0xE0F7FA], grass = [0x7cfc00, 0x228b22, 0xdaa520, 0xffffff];
