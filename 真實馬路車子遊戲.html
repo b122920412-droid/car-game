@@ -3,22 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 系統解鎖與路燈優化版</title>
+    <title>亡命飆速 - 完整視覺修復版</title>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #0b0b1a; font-family: 'Segoe UI', Arial, sans-serif; touch-action: none; }
+        
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a3a, #050510); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 5000; color: white; text-align: center; }
-        .title { font-size: 56px; font-weight: 900; letter-spacing: 6px; color: #fff; text-shadow: 0 0 30px #007bff; margin: 0; }
-        .warning-text { color: #ff4444; font-weight: bold; margin-bottom: 20px; letter-spacing: 2px; animation: blink 1.2s infinite; font-size: 20px; }
+        .title { font-size: 56px; font-weight: 900; letter-spacing: 6px; color: #fff; text-shadow: 0 0 30px #007bff; margin-bottom: 10px; }
+        .warning-text { color: #ff4444; font-weight: bold; margin-bottom: 20px; letter-spacing: 2px; animation: blink 1.2s infinite; font-size: 20px; text-shadow: 0 0 10px #ff0000; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        
         .setting-group { margin: 10px 0; display: flex; flex-direction: column; align-items: center; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 20px; width: 340px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
-        .setting-label { font-size: 14px; color: #00d2ff; margin-bottom: 10px; font-weight: bold; }
+        .setting-label { font-size: 14px; color: #00d2ff; margin-bottom: 10px; font-weight: bold; text-transform: uppercase; }
         .option-group { display: flex; gap: 12px; }
         .opt-btn { padding: 10px 22px; border: 1px solid #007bff; background: rgba(0, 123, 255, 0.1); color: white; border-radius: 50px; cursor: pointer; transition: 0.3s; font-size: 14px; }
-        .opt-btn.active { background: #007bff; box-shadow: 0 0 20px #007bff; border-color: #00ffcc; }
+        .opt-btn.active { background: #007bff; box-shadow: 0 0 20px #007bff; border-color: #00ffcc; color: white; }
+        
         .start-btn { padding: 20px 80px; font-size: 26px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: 900; margin-top: 30px; box-shadow: 0 10px 30px rgba(0,123,255,0.4); }
         .start-btn:disabled { background: #333; cursor: wait; opacity: 0.6; }
+        
+        /* 💡 UI 層：包含分數與時速 */
         #ui-layer { position: absolute; top: 25px; left: 25px; right: 25px; pointer-events: none; z-index: 2000; display: none; }
-        #scoreDisplay { font-size: 42px; color: #0f0; font-family: monospace; font-weight: bold; float: right; }
+        #scoreDisplay { font-size: 42px; color: #0f0; font-family: 'Courier New', monospace; font-weight: bold; float: right; text-shadow: 0 0 15px #0f0; }
+        #speedo { color: #fff; font-size: 22px; font-weight: bold; clear: both; float: right; margin-top: 10px; font-family: monospace; text-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        #hp-container { width: 220px; height: 20px; background: #222; border: 2px solid #fff; border-radius: 12px; overflow: hidden; display: none; margin-bottom: 10px; }
+        #hp-bar { width: 100%; height: 100%; background: linear-gradient(to right, #ff0000, #ff6666); transition: 0.3s; }
     </style>
 </head>
 <body>
@@ -28,23 +36,37 @@
     <div id="start-screen">
         <div class="title">亡命飆速</div>
         <div class="warning-text">🚨 警告：前方警方已設下強力路障！</div>
-        <div class="setting-group"><div class="setting-label">🕹️ 操作模式</div><div class="option-group">
-            <button id="ctrl-touch" class="opt-btn active" onclick="setSetting('ctrl', 'touch')">鍵盤 / 觸控</button>
-            <button id="ctrl-tilt" class="opt-btn" onclick="setSetting('ctrl', 'tilt')">手機體感</button>
-        </div></div>
-        <div class="setting-group"><div class="setting-label">🛡️ 挑戰難度</div><div class="option-group">
-            <button id="diff-1" class="opt-btn active" onclick="setSetting('diff', 1)">簡單</button>
-            <button id="diff-2" class="opt-btn" onclick="setSetting('diff', 2)">普通</button>
-            <button id="diff-3" class="opt-btn" onclick="setSetting('diff', 3)">困難</button>
-        </div></div>
-        <div class="setting-group"><div class="setting-label">🔥 遊戲模式</div><div class="option-group">
-            <button id="mode-hard" class="opt-btn active" onclick="setSetting('mode', 'hard')">💀 一撞即死</button>
-            <button id="mode-easy" class="opt-btn" onclick="setSetting('mode', 'easy')">❤️ 護甲模式</button>
-        </div></div>
+        
+        <div class="setting-group">
+            <div class="setting-label">🕹️ 操作模式</div>
+            <div class="option-group">
+                <button id="ctrl-touch" class="opt-btn active" onclick="setSetting('ctrl', 'touch')">鍵盤 / 觸控</button>
+                <button id="ctrl-tilt" class="opt-btn" onclick="setSetting('ctrl', 'tilt')">手機體感</button>
+            </div>
+        </div>
+        <div class="setting-group">
+            <div class="setting-label">🛡️ 挑戰難度</div>
+            <div class="option-group">
+                <button id="diff-1" class="opt-btn active" onclick="setSetting('diff', 1)">簡單</button>
+                <button id="diff-2" class="opt-btn" onclick="setSetting('diff', 2)">普通</button>
+                <button id="diff-3" class="opt-btn" onclick="setSetting('diff', 3)">困難</button>
+            </div>
+        </div>
+        <div class="setting-group">
+            <div class="setting-label">🔥 遊戲模式</div>
+            <div class="option-group">
+                <button id="mode-hard" class="opt-btn active" onclick="setSetting('mode', 'hard')">💀 一撞即死</button>
+                <button id="mode-easy" class="opt-btn" onclick="setSetting('mode', 'easy')">❤️ 護甲模式</button>
+            </div>
+        </div>
         <button id="start-btn" class="start-btn" disabled onclick="handleStart()">資源載入中...</button>
     </div>
 
-    <div id="ui-layer"><div id="scoreDisplay">00000</div></div>
+    <div id="ui-layer">
+        <div id="hp-container"><div id="hp-bar"></div></div>
+        <div id="scoreDisplay">00000</div>
+        <div id="speedo">0 KM/H</div>
+    </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -68,10 +90,20 @@
             gameStarted = true;
             document.getElementById('start-screen').style.display = 'none';
             document.getElementById('ui-layer').style.display = 'block';
+            if (settings.mode === 'easy') { document.getElementById('hp-container').style.display = 'block'; hp = 100; updateHPBar(); }
             currentSpeed = 0.8 + (settings.diff * 0.4); 
             initControls(); animate();
-            setInterval(() => { if(gameStarted) { score++; currentSpeed += 0.002; document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0'); updateSeasons(); } }, 100);
-            setInterval(createObstacle, 1000 - (settings.diff * 100)); 
+            setInterval(() => { 
+                if(gameStarted) { 
+                    score++; 
+                    currentSpeed += 0.002; 
+                    document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0');
+                    // 💡 更新時速文字
+                    document.getElementById('speedo').innerText = Math.floor(currentSpeed * 80) + " KM/H";
+                    updateSeasons(); 
+                } 
+            }, 100);
+            setInterval(createObstacle, 1100 - (settings.diff * 100)); 
             setInterval(createPairs, 500); 
         }
 
@@ -100,9 +132,9 @@
 
             ['car1.glb','car2.glb','car3.glb','car4.glb','car5.glb','car6.glb'].forEach(f => {
                 loader.load(f, (g) => { 
-                    g.scene.traverse(n => { if(n.isMesh) { n.material.transparent = false; n.material.depthWrite = true; } });
+                    g.scene.traverse(node => { if(node.isMesh) { node.material.transparent = false; node.material.depthWrite = true; } });
                     obsCarModels[f] = g.scene; checkLoaded(); 
-                }, undefined, () => checkLoaded()); // 失敗也增加，防止卡死
+                }, undefined, () => checkLoaded());
             });
 
             const unpack = (file, indices) => {
@@ -115,22 +147,15 @@
             unpack('pine_trees_pack__ps1_low_poly.glb', [2]);
             unpack('snowy_pine_trees_pack__ps1_low_poly.glb', [3]);
             
-            // 💡 直接載入新路燈模型
-            loader.load('nintendogs_street_light.glb', (g) => { 
-                streetLightModel = g.scene;
-                checkLoaded(); 
-            }, undefined, () => checkLoaded());
+            loader.load('nintendogs_street_light.glb', (g) => { streetLightModel = g.scene; checkLoaded(); }, undefined, () => checkLoaded());
 
-            // 💡 強制解鎖按鈕：防止因為資源載入失敗而卡死
-            setTimeout(() => {
-                const btn = document.getElementById('start-btn');
-                if (btn.disabled) { btn.disabled = false; btn.innerText = "進入賽道"; }
-            }, 3000);
+            setTimeout(() => { if(document.getElementById('start-btn').disabled) { loadedCount = totalToLoad; checkLoaded(); } }, 4000);
 
             camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
         }
 
-        function checkLoaded() { loadedCount++; if(loadedCount >= totalToLoad) { document.getElementById('start-btn').disabled = false; document.getElementById('start-btn').innerText = "進入賽道"; } }
+        function updateHPBar() { document.getElementById('hp-bar').style.width = hp + "%"; }
+        function checkLoaded() { loadedCount++; if(loadedCount >= totalToLoad) { const btn = document.getElementById('start-btn'); btn.disabled = false; btn.innerText = "進入賽道"; } }
 
         function createObstacle() {
             const keys = Object.keys(obsCarModels); if (!gameStarted || keys.length === 0) return;
@@ -145,7 +170,6 @@
         function createPairs() {
             if (!gameStarted) return;
             const idx = Math.floor(score / 200) % 4;
-            // 路燈每 25 分生成一對
             if (score % 25 === 0 && streetLightModel) {
                 [-1, 1].forEach(side => {
                     let s = streetLightModel.clone();
@@ -180,12 +204,17 @@
             obstacles.forEach((obs, i) => {
                 obs.position.z += currentSpeed;
                 if (Math.abs(car.position.z - obs.position.z) < 2.0 && Math.abs(car.position.x - obs.position.x) < 1.5) {
-                    document.getElementById('crashSound').play(); endGame();
+                    document.getElementById('crashSound').play();
+                    if (settings.mode === 'easy') {
+                        hp -= 34; updateHPBar(); scene.remove(obs); obstacles.splice(i, 1);
+                        if (hp <= 0) endGame();
+                    } else { endGame(); }
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
             renderer.render(scene, camera);
         }
+
         function endGame() { gameStarted = false; setTimeout(() => { alert("💥 任務結束！得分: " + score); location.reload(); }, 100); }
         function updateSeasons() {
             const idx = Math.floor(score / 200) % 4;
