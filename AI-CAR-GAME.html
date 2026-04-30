@@ -3,53 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>賽車小遊戲-亡命飆速 </title>
+    <title>賽車小遊戲-亡命飆速 (操控全分離版)</title>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: 'Segoe UI', Arial, sans-serif; touch-action: none; }
         #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a3a, #050510); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 5000; color: white; text-align: center; overflow-y: auto; padding: 20px 0; }
-        .title { font-size: 56px; font-weight: 900; letter-spacing: 6px; color: #fff; text-shadow: 0 0 30px #007bff; margin: 0; }
+        .title { font-size: 56px; font-weight: 900; letter-spacing: 6px; color: #fff; text-shadow: 0 0 30px #007bff; margin-bottom: 5px; }
         .warning-text { color: #ff4444; font-weight: bold; margin-bottom: 15px; letter-spacing: 2px; animation: blink 1.2s infinite; font-size: 18px; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-        .setting-group { margin: 8px 0; display: flex; flex-direction: column; align-items: center; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 20px; width: 360px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
+        .setting-group { margin: 8px 0; display: flex; flex-direction: column; align-items: center; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 20px; width: 400px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
         .setting-label { font-size: 14px; color: #00d2ff; margin-bottom: 8px; font-weight: bold; }
         .option-group { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-        .opt-btn { padding: 10px 16px; border: 1px solid #007bff; background: rgba(0, 123, 255, 0.1); color: white; border-radius: 50px; cursor: pointer; transition: 0.3s; font-size: 13px; }
+        .opt-btn { padding: 10px 14px; border: 1px solid #007bff; background: rgba(0, 123, 255, 0.1); color: white; border-radius: 50px; cursor: pointer; transition: 0.3s; font-size: 12px; }
         .opt-btn.active { background: #007bff; box-shadow: 0 0 20px #007bff; border-color: #00ffcc; }
         .start-btn { padding: 18px 70px; font-size: 24px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: 900; margin-top: 20px; box-shadow: 0 10px 30px rgba(0,123,255,0.4); }
         #ui-layer { position: absolute; top: 25px; left: 25px; right: 25px; pointer-events: none; z-index: 2000; display: none; }
         #scoreDisplay { font-size: 42px; color: #0f0; font-family: monospace; font-weight: bold; float: right; }
         #speedo { color: #fff; font-size: 22px; font-weight: bold; clear: both; float: right; margin-top: 10px; font-family: monospace; }
-        #hp-container { width: 220px; height: 20px; background: #222; border: 2px solid #fff; border-radius: 12px; overflow: hidden; margin-bottom: 10px; display: none; }
-        #hp-bar { width: 100%; height: 100%; background: linear-gradient(to right, #ff0000, #ff6666); transition: 0.3s; }
-        #remote-info { margin-top: 10px; font-size: 14px; color: #00ffcc; background: rgba(0,0,0,0.5); padding: 8px; border-radius: 10px; display: none; }
+        #remote-info { margin-top: 10px; font-size: 14px; color: #00ffcc; background: rgba(0,0,0,0.5); padding: 8px; border-radius: 10px; display: none; border: 1px solid #00ffcc; }
         
-        /* 📱 手機遙控端專用 UI */
-        #controller-ui { position: fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:10000; display:none; flex-direction:column; justify-content:center; align-items:center; color:#fff; }
-        #remote-touch-areas { position: absolute; top:0; left:0; width:100%; height:100%; display:none; opacity: 0.3; }
-        .touch-zone { width: 50%; height: 100%; display: flex; justify-content: center; align-items: center; font-size: 40px; font-weight: bold; border: 2px dashed #fff; }
+        #controller-ui { position: fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:10000; display:none; flex-direction:column; justify-content:center; align-items:center; color:#fff; text-align: center; }
+        #touch-controller { position: absolute; top:0; left:0; width:100%; height:100%; display:none; z-index: 10; }
+        .touch-btn { width: 50%; height: 100%; display: flex; justify-content: center; align-items: center; font-size: 50px; font-weight: 900; border: 1px solid rgba(255,255,255,0.2); }
     </style>
 </head>
 <body>
     <audio id="bgm" loop preload="auto"><source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" type="audio/mpeg"></audio>
     <audio id="crashSound" preload="auto"><source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" type="audio/ogg"></audio>
 
-    <!-- 手機遙控端介面 -->
+    <!-- 手機端介面 -->
     <div id="controller-ui">
-        <h2 id="conn-title">📱 遠端遙控器</h2>
-        <div id="input-area">
-            <p>輸入電腦 ID:</p>
-            <input type="text" id="peer-id-input" placeholder="ID" maxlength="4" style="padding:12px; text-align:center; font-size:20px; border-radius:10px;">
-            <br><br>
-            <button class="opt-btn active" style="font-size:20px; padding:15px 40px;" onclick="connectToPC()">連線</button>
+        <div id="setup-area">
+            <h2>手機遙控器</h2>
+            <input type="text" id="peer-id-input" placeholder="電腦 ID" maxlength="4" style="padding:15px; font-size:20px; text-align:center; border-radius:10px; margin-bottom:20px;">
+            <br>
+            <button class="opt-btn active" style="font-size:20px; padding:15px 50px;" onclick="connectToPC()">連線</button>
         </div>
-        <div id="remote-touch-areas">
-            <div class="touch-zone" style="background: rgba(0,255,200,0.1);">左</div>
-            <div class="touch-zone" style="background: rgba(0,123,255,0.1);">右</div>
+        <!-- 遙控觸控模式介面 -->
+        <div id="touch-controller">
+            <div class="touch-btn" style="background:rgba(255,0,0,0.1);" onpointerdown="sendRemoteCmd('L')">◀</div>
+            <div class="touch-btn" style="background:rgba(0,255,0,0.1);" onpointerdown="sendRemoteCmd('R')">▶</div>
         </div>
-        <p id="remote-hint" style="display:none; margin-top:20px; color:#00ffcc;">✅ 連線成功！<br>傾斜手機 或 點擊螢幕兩側 操控</p>
+        <!-- 遙控體感模式提示 -->
+        <p id="tilt-msg" style="display:none; color:#00ffcc; font-size:20px; margin-top:30px;">✅ 體感連線成功！<br>左右傾斜手機控制</p>
     </div>
 
+    <!-- 電腦端介面 -->
     <div id="start-screen">
         <div class="title">亡命飆速</div>
         <div class="warning-text">🚨 警告：盡全力逃避警方，小心車輛！</div>
@@ -59,14 +58,15 @@
             <div class="option-group">
                 <button id="ctrl-touch" class="opt-btn active" onclick="updateSetting('ctrl', 'touch')">鍵盤/觸控</button>
                 <button id="ctrl-tilt" class="opt-btn" onclick="updateSetting('ctrl', 'tilt')">手機體感</button>
-                <button id="ctrl-remote" class="opt-btn" onclick="updateSetting('ctrl', 'remote')">遙控PC模式</button>
+                <button id="ctrl-remTilt" class="opt-btn" onclick="updateSetting('ctrl', 'remTilt')">遙控(體感)</button>
+                <button id="ctrl-remTouch" class="opt-btn" onclick="updateSetting('ctrl', 'remTouch')">遙控(觸控)</button>
                 <button id="ctrl-as-remote" class="opt-btn" style="border-color:#ff9900" onclick="setupAsController()">我是遙控器</button>
             </div>
-            <div id="remote-info">電腦 ID: <span id="my-id" style="color:#fff; font-weight:bold;">...</span></div>
+            <div id="remote-info">電腦 ID: <span id="my-id" style="color:#fff; font-weight:bold; font-size:20px;">...</span></div>
         </div>
 
         <div class="setting-group">
-            <div class="setting-label">🛡️ 挑戰難度</div>
+            <div class="setting-label">🛡️ 難度選擇</div>
             <div class="option-group">
                 <button id="diff-1" class="opt-btn active" onclick="updateSetting('diff', 1)">簡單</button>
                 <button id="diff-2" class="opt-btn" onclick="updateSetting('diff', 2)">普通</button>
@@ -74,19 +74,10 @@
             </div>
         </div>
 
-        <div class="setting-group">
-            <div class="setting-label">🔥 遊戲模式</div>
-            <div class="option-group">
-                <button id="mode-hard" class="opt-btn active" onclick="updateSetting('mode', 'hard')">💀 一撞即死</button>
-                <button id="mode-easy" class="opt-btn" onclick="updateSetting('mode', 'easy')">❤️ 護甲模式</button>
-            </div>
-        </div>
-
         <button id="start-btn" class="start-btn" onclick="handleStart()">進入賽道</button>
     </div>
 
     <div id="ui-layer">
-        <div id="hp-container"><div id="hp-bar"></div></div>
         <div id="scoreDisplay">00000</div>
         <div id="speedo">0 KM/H</div>
     </div>
@@ -95,22 +86,22 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
     <script>
-        let scene, camera, renderer, car, grassPlane, road, gameStarted = false, score = 0;
-        let obstacles = [], decor = [], streetLightModel = null, obsCarModels = {}, decorPool = { 0: [], 1: [], 2: [], 3: [] };
-        let policeLightR, policeLightB, lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
-        let currentSpeed = 1.0, hp = 100, settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
+        let scene, camera, renderer, car, streetLightModel = null, obsCarModels = {}, decorPool = { 0: [], 1: [], 2: [], 3: [] };
+        let gameStarted = false, score = 0, currentSpeed = 1.0;
+        let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
+        let obstacles = [], decor = [], settings = { ctrl: 'touch', diff: 1 };
         let peer = null, activeConn = null;
 
         function updateSetting(type, val) {
             settings[type] = val;
             document.querySelectorAll(`[id^="${type}-"]`).forEach(btn => btn.classList.remove('active'));
             document.getElementById(`${type}-${val}`).classList.add('active');
-            if (type === 'ctrl') {
-                document.getElementById('remote-info').style.display = (val === 'remote') ? 'block' : 'none';
-                if (val === 'remote') initPeerAsPC();
-            }
+            const isRemote = (val === 'remTilt' || val === 'remTouch');
+            document.getElementById('remote-info').style.display = isRemote ? 'block' : 'none';
+            if (isRemote) initPeerAsPC();
         }
 
+        // --- 遠端遙控邏輯 ---
         function setupAsController() { document.getElementById('controller-ui').style.display = 'flex'; }
 
         function initPeerAsPC() {
@@ -119,14 +110,12 @@
             peer = new Peer(randomID);
             peer.on('open', id => document.getElementById('my-id').innerText = id);
             peer.on('connection', c => {
-                if (activeConn) { c.on('open', () => c.close()); return; }
                 activeConn = c;
-                document.getElementById('my-id').innerText = "✅ 已連線！";
+                document.getElementById('my-id').innerText = "✅ 手機已連線";
                 c.on('data', data => {
-                    if (data.type === 'tilt') handleTilt(data.value);
-                    if (data.type === 'touch') {
-                        if(data.value === 'L') moveLane(-1);
-                        else moveLane(1);
+                    if (data.type === 'tilt' && settings.ctrl === 'remTilt') handleTilt(data.value);
+                    if (data.type === 'touch' && settings.ctrl === 'remTouch') {
+                        if(data.value === 'L') moveLane(-1); else moveLane(1);
                     }
                 });
             });
@@ -136,34 +125,25 @@
             const targetID = document.getElementById('peer-id-input').value;
             peer = new Peer();
             peer.on('open', () => {
-                const conn = peer.connect(targetID);
-                conn.on('open', () => {
-                    document.getElementById('input-area').style.display = 'none';
-                    document.getElementById('remote-touch-areas').style.display = 'flex';
-                    document.getElementById('remote-hint').style.display = 'block';
-                    
-                    // 1. 傳送體感
-                    window.addEventListener('deviceorientation', e => conn.send({ type: 'tilt', value: e.gamma }));
-                    
-                    // 2. 傳送觸控
-                    window.addEventListener('touchstart', e => {
-                        const side = (e.touches[0].clientX < window.innerWidth / 2) ? 'L' : 'R';
-                        conn.send({ type: 'touch', value: side });
+                activeConn = peer.connect(targetID);
+                activeConn.on('open', () => {
+                    document.getElementById('setup-area').style.display = 'none';
+                    // 根據電腦選的模式顯示介面 (預設顯示體感提示，若要觸控則切換)
+                    window.addEventListener('deviceorientation', e => {
+                        activeConn.send({ type: 'tilt', value: e.gamma });
+                        document.getElementById('tilt-msg').style.display = 'block';
                     });
+                    document.getElementById('touch-controller').style.display = 'flex';
                 });
             });
         }
 
-        function moveLane(dir) {
-            currentLaneIndex = Math.max(0, Math.min(2, currentLaneIndex + dir));
-            targetX = lanes[currentLaneIndex];
-        }
+        function sendRemoteCmd(side) { if(activeConn) activeConn.send({ type: 'touch', value: side }); }
 
-        function handleTilt(tilt) {
-            if (tilt < -12) currentLaneIndex = 0; else if (tilt > 12) currentLaneIndex = 2; else currentLaneIndex = 1;
-            targetX = lanes[currentLaneIndex];
-        }
+        function moveLane(dir) { currentLaneIndex = Math.max(0, Math.min(2, currentLaneIndex + dir)); targetX = lanes[currentLaneIndex]; }
+        function handleTilt(tilt) { if (tilt < -12) currentLaneIndex = 0; else if (tilt > 12) currentLaneIndex = 2; else currentLaneIndex = 1; targetX = lanes[currentLaneIndex]; }
 
+        // --- 遊戲 3D 核心 ---
         function init3D() {
             scene = new THREE.Scene(); scene.background = new THREE.Color(0x87CEEB);
             scene.fog = new THREE.Fog(0x87CEEB, 40, 200);
@@ -172,26 +152,13 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.outputEncoding = THREE.sRGBEncoding;
             document.body.appendChild(renderer.domElement);
-
             scene.add(new THREE.AmbientLight(0xffffff, 1.4));
-            const sun = new THREE.DirectionalLight(0xffffff, 1.2); sun.position.set(10, 50, 10); scene.add(sun);
-            road = new THREE.Mesh(new THREE.PlaneGeometry(22, 2000), new THREE.MeshPhongMaterial({ color: 0x333333 }));
-            road.rotation.x = -Math.PI / 2; scene.add(road);
-            grassPlane = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshPhongMaterial({ color: 0x7cfc00 }));
-            grassPlane.rotation.x = -Math.PI / 2; grassPlane.position.y = -0.15; scene.add(grassPlane);
-
-            policeLightR = new THREE.PointLight(0xff0000, 0, 50); policeLightB = new THREE.PointLight(0x0000ff, 0, 50);
-            scene.add(policeLightR, policeLightB);
-
             const loader = new THREE.GLTFLoader();
             loader.load('car.glb', (g) => { car = g.scene; car.scale.set(4.5, 4.5, 4.5); scene.add(car); car.position.z = 15; });
             loader.load('nintendogs_street_light.glb', (g) => { streetLightModel = g.scene; });
             ['car1.glb','car2.glb','car3.glb','car4.glb','car5.glb','car6.glb'].forEach(f => { loader.load(f, (g) => { obsCarModels[f] = g.scene; }); });
-            const loadTree = (f, idxs) => { loader.load(f, (g) => { g.scene.traverse(n => { if(n.isMesh) idxs.forEach(i => decorPool[i].push(n.clone())); }); }); };
-            loadTree('birch_trees_pack__ps1_low_poly.glb', [0, 1]); loadTree('pine_trees_pack__ps1_low_poly.glb', [2]); loadTree('snowy_pine_trees_pack__ps1_low_poly.glb', [3]);
-
             camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
-            renderer.render(scene, camera);
+            renderer.setAnimationLoop(() => { if(gameStarted) animate(); renderer.render(scene, camera); });
         }
 
         async function handleStart() {
@@ -200,20 +167,10 @@
             }
             document.getElementById('start-screen').style.display = 'none';
             document.getElementById('ui-layer').style.display = 'block';
-            if (settings.mode === 'easy') { document.getElementById('hp-container').style.display = 'block'; hp = 100; updateHPBar(); }
             document.getElementById('bgm').play().catch(()=>{});
             gameStarted = true;
-            currentSpeed = 1.0;
-            initControls(); animate();
-            setInterval(() => {
-                if(gameStarted) {
-                    score++; currentSpeed += 0.002;
-                    document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0');
-                    document.getElementById('speedo').innerText = Math.floor(currentSpeed * 80) + " KM/H";
-                    updateSeasons();
-                }
-            }, 100);
-            setInterval(createObstacle, 1100 - (settings.diff * 100));
+            setInterval(() => { if(gameStarted) { score++; currentSpeed += 0.002; document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0'); document.getElementById('speedo').innerText = Math.floor(currentSpeed * 80) + " KM/H"; } }, 100);
+            setInterval(createObstacle, 1000);
             setInterval(createPairs, 500);
         }
 
@@ -221,74 +178,36 @@
             const keys = Object.keys(obsCarModels); if (!gameStarted || keys.length === 0) return;
             let k = keys[Math.floor(Math.random() * keys.length)];
             let c = obsCarModels[k].clone();
-            if(k === 'car6.glb') { c.scale.set(1.8, 1.8, 1.8); c.rotation.y = 0; } else { c.scale.set(3.2, 3.2, 3.2); c.rotation.y = Math.PI / 2; }
+            c.scale.set(3.2, 3.2, 3.2); c.rotation.y = Math.PI / 2;
             c.position.set(lanes[Math.floor(Math.random() * 3)], 0, -180);
             scene.add(c); obstacles.push(c);
         }
 
         function createPairs() {
-            if (!gameStarted || !streetLightModel) return;
-            const idx = Math.floor(score / 200) % 4;
-            if (score % 25 === 0) {
-                [-1, 1].forEach(side => {
-                    let s = streetLightModel.clone(); s.scale.set(0.4, 0.4, 0.4); 
-                    s.position.set(side * 9.5, 0, -220); s.rotation.y = side > 0 ? 0 : Math.PI;
-                    scene.add(s); decor.push(s);
-                });
-            } else if (decorPool[idx] && decorPool[idx].length > 0 && score % 15 === 0) {
-                const treeBase = decorPool[idx][Math.floor(Math.random() * decorPool[idx].length)];
-                [-1, 1].forEach(side => {
-                    let t = treeBase.clone(); t.scale.set(0.18, 0.18, 0.18);
-                    t.position.set(side * 14.5, 0, -220); scene.add(t); decor.push(t);
-                });
-            }
+            if (!gameStarted || !streetLightModel || score % 25 !== 0) return;
+            [-1, 1].forEach(side => {
+                let s = streetLightModel.clone(); s.scale.set(0.4, 0.4, 0.4); 
+                s.position.set(side * 9.5, 0, -220); s.rotation.y = side > 0 ? 0 : Math.PI;
+                scene.add(s); decor.push(s);
+            });
         }
 
         function animate() {
-            if (!gameStarted) return;
-            requestAnimationFrame(animate);
-            if(car) {
-                car.position.x += (targetX - car.position.x) * 0.15;
-                car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
-                policeLightR.position.set(car.position.x - 0.7, 4.5, car.position.z);
-                policeLightB.position.set(car.position.x + 0.7, 4.5, car.position.z);
-            }
-            let flash = (Math.floor(Date.now() / 150) % 2);
-            policeLightR.intensity = flash === 0 ? 80 : 0; policeLightB.intensity = flash === 1 ? 80 : 0;
+            if(car) { car.position.x += (targetX - car.position.x) * 0.15; car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; }
             decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); }});
             obstacles.forEach((obs, i) => {
                 obs.position.z += currentSpeed;
                 if (car && Math.abs(car.position.z - obs.position.z) < 2.0 && Math.abs(car.position.x - obs.position.x) < 1.5) {
-                    document.getElementById('crashSound').play();
-                    if (settings.mode === 'easy') { hp -= 34; updateHPBar(); scene.remove(obs); obstacles.splice(i, 1); if (hp <= 0) endGame(); } else endGame();
+                    gameStarted = false; alert("💥 任務結束！得分: " + score); location.reload();
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
-            renderer.render(scene, camera);
-        }
-
-        function updateHPBar() { document.getElementById('hp-bar').style.width = hp + "%"; }
-        function endGame() { gameStarted = false; setTimeout(() => { alert("💥 任務結束！得分: " + score); location.reload(); }, 100); }
-        function updateSeasons() {
-            const idx = Math.floor(score / 200) % 4;
-            const grass = [0x7cfc00, 0x228b22, 0xdaa520, 0xffffff];
-            if(scene) { grassPlane.material.color.setHex(grass[idx]); }
         }
 
         function initControls() {
-            window.addEventListener('keydown', e => { 
-                if (e.key === 'ArrowLeft') moveLane(-1);
-                if (e.key === 'ArrowRight') moveLane(1);
-            });
-            window.addEventListener('touchstart', e => { 
-                if (!gameStarted || settings.ctrl !== 'touch') return; 
-                if (e.touches[0].clientX < window.innerWidth / 2) moveLane(-1); 
-                else moveLane(1);
-            });
-            window.addEventListener('deviceorientation', e => { 
-                if (!gameStarted || settings.ctrl !== 'tilt') return; 
-                handleTilt(e.gamma);
-            });
+            window.addEventListener('keydown', e => { if (e.key === 'ArrowLeft') moveLane(-1); if (e.key === 'ArrowRight') moveLane(1); });
+            window.addEventListener('touchstart', e => { if (!gameStarted || settings.ctrl !== 'touch') return; if (e.touches[0].clientX < window.innerWidth / 2) moveLane(-1); else moveLane(1); });
+            window.addEventListener('deviceorientation', e => { if (!gameStarted || settings.ctrl !== 'tilt') return; handleTilt(e.gamma); });
         }
         window.onload = init3D;
     </script>
