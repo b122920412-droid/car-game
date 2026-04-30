@@ -197,8 +197,8 @@
             document.getElementById('bgm').play().catch(()=>{});
             gameStarted = true;
             
-            const startSpeeds = [0, 1.8, 2.5, 3.2]; 
-            const accelRates = [0, 0.003, 0.006, 0.012]; 
+            const startSpeeds = [0, 1.8, 2.5, 3.0]; 
+            const accelRates = [0, 0.003, 0.006, 0.009]; 
             currentSpeed = startSpeeds[settings.diff];
 
             setInterval(() => { if(gameStarted) { score++; currentSpeed += accelRates[settings.diff]; document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0'); document.getElementById('speedo').innerText = Math.floor(currentSpeed * 50) + " KM/H"; updateSeasons(); } }, 100);
