@@ -201,7 +201,7 @@
             const accelRates = [0, 0.003, 0.006, 0.012]; 
             currentSpeed = startSpeeds[settings.diff];
 
-            setInterval(() => { if(gameStarted) { score++; currentSpeed += accelRates[settings.diff]; document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0'); document.getElementById('speedo').innerText = Math.floor(currentSpeed * 40) + " KM/H"; updateSeasons(); } }, 100);
+            setInterval(() => { if(gameStarted) { score++; currentSpeed += accelRates[settings.diff]; document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0'); document.getElementById('speedo').innerText = Math.floor(currentSpeed * 60) + " KM/H"; updateSeasons(); } }, 100);
             setInterval(createObstacle, [0, 1000, 700, 450][settings.diff]);
             setInterval(createPairs, 500);
             initControls();
