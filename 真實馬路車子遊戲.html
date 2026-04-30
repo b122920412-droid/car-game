@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>亡命飆速 - 終極全功能報告版</title>
+    <title>賽車小遊戲-亡命飆速 (最終穩定版)</title>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #0b0b1a; font-family: 'Segoe UI', Arial, sans-serif; touch-action: none; }
-        #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a3a, #050510); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 5000; color: white; text-align: center; overflow-y: auto; padding: 20px 0; }
-        .title { font-size: 56px; font-weight: 900; letter-spacing: 6px; color: #fff; text-shadow: 0 0 30px #007bff; margin: 0; }
+        #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #1a1a3a, #050510); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 5000; color: white; text-align: center; overflow-y: auto; }
+        .title { font-size: 56px; font-weight: 900; letter-spacing: 6px; color: #fff; text-shadow: 0 0 30px #007bff; margin-bottom: 10px; }
         .warning-text { color: #ff4444; font-weight: bold; margin-bottom: 15px; letter-spacing: 2px; animation: blink 1.2s infinite; font-size: 18px; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-        .setting-group { margin: 8px 0; display: flex; flex-direction: column; align-items: center; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 20px; width: 360px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
+        .setting-group { margin: 8px 0; display: flex; flex-direction: column; align-items: center; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 20px; width: 340px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
         .setting-label { font-size: 14px; color: #00d2ff; margin-bottom: 8px; font-weight: bold; }
         .option-group { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
         .opt-btn { padding: 10px 16px; border: 1px solid #007bff; background: rgba(0, 123, 255, 0.1); color: white; border-radius: 50px; cursor: pointer; transition: 0.3s; font-size: 13px; }
@@ -19,23 +19,22 @@
         .start-btn { padding: 18px 70px; font-size: 24px; cursor: pointer; background: linear-gradient(135deg, #007bff, #00ffcc); border: none; color: white; border-radius: 50px; font-weight: 900; margin-top: 20px; box-shadow: 0 10px 30px rgba(0,123,255,0.4); }
         .start-btn:disabled { background: #333; cursor: wait; opacity: 0.6; }
         #ui-layer { position: absolute; top: 25px; left: 25px; right: 25px; pointer-events: none; z-index: 2000; display: none; }
-        #scoreDisplay { font-size: 42px; color: #0f0; font-family: monospace; font-weight: bold; float: right; }
-        #speedo { color: #fff; font-size: 22px; font-weight: bold; clear: both; float: right; margin-top: 10px; font-family: monospace; }
+        #scoreDisplay { font-size: 42px; color: #0f0; font-family: monospace; font-weight: bold; float: right; text-shadow: 0 0 10px #000; }
+        #speedo { color: #fff; font-size: 22px; font-weight: bold; clear: both; float: right; margin-top: 10px; font-family: monospace; text-shadow: 0 0 10px #000; }
         #hp-container { width: 220px; height: 20px; background: #222; border: 2px solid #fff; border-radius: 12px; overflow: hidden; margin-bottom: 10px; display: none; }
         #hp-bar { width: 100%; height: 100%; background: linear-gradient(to right, #ff0000, #ff6666); transition: 0.3s; }
-        #remote-info { margin-top: 10px; font-size: 13px; color: #00ffcc; background: rgba(0,0,0,0.5); padding: 8px; border-radius: 10px; display: none; }
-        #controller-ui { position: fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:10000; display:none; flex-direction:column; justify-content:center; align-items:center; color:#fff; text-align: center; }
-        input { padding: 12px; border-radius: 8px; border: none; margin: 15px; text-align: center; font-size: 18px; width: 180px; }
+        #remote-info { margin-top: 10px; font-size: 13px; color: #00ffcc; display: none; }
+        #controller-ui { position: fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:10000; display:none; flex-direction:column; justify-content:center; align-items:center; color:#fff; }
+        input { padding: 12px; border-radius: 8px; border: none; margin: 15px; text-align: center; font-size: 18px; width: 150px; }
     </style>
 </head>
 <body>
 
     <div id="controller-ui">
-        <h2>📱 手機遙控器</h2>
+        <h2>📱 手機遙控器模式</h2>
         <p id="conn-status">輸入電腦上的 4 位 ID</p>
-        <input type="text" id="peer-id-input" placeholder="ID 例如: 1234" maxlength="4">
-        <button class="opt-btn active" style="font-size:18px; padding: 12px 30px;" onclick="connectToPC()">開始連線</button>
-        <p id="tilt-hint" style="display:none; color:#00ffcc; margin-top:20px;">連線成功！<br>左右傾斜手機控制電腦賽車。</p>
+        <input type="text" id="peer-id-input" placeholder="ID" maxlength="4">
+        <button class="opt-btn active" onclick="connectToPC()">開始連線</button>
     </div>
 
     <div id="start-screen">
@@ -47,14 +46,14 @@
             <div class="option-group">
                 <button id="ctrl-touch" class="opt-btn active" onclick="setSetting('ctrl', 'touch')">鍵盤/觸控</button>
                 <button id="ctrl-tilt" class="opt-btn" onclick="setSetting('ctrl', 'tilt')">本機體感</button>
-                <button id="ctrl-remote" class="opt-btn" onclick="setSetting('ctrl', 'remote')">多人報告(遙控PC)</button>
-                <button id="ctrl-as-remote" class="opt-btn" style="border-color:#ffcc00;" onclick="setupAsController()">我是遙控器</button>
+                <button id="ctrl-remote" class="opt-btn" onclick="setSetting('ctrl', 'remote')">遙控PC模式</button>
+                <button id="ctrl-as-remote" class="opt-btn" onclick="setupAsController()" style="border-color:#ff9900">我是遙控器</button>
             </div>
-            <div id="remote-info">ID: <span id="my-id" style="font-size:20px; font-weight:bold; color:#fff;">載入中...</span></div>
+            <div id="remote-info">連線 ID: <span id="my-id" style="font-size:20px; color:#fff; font-weight:bold;">...</span></div>
         </div>
 
         <div class="setting-group">
-            <div class="setting-label">🛡️ 難度選擇</div>
+            <div class="setting-label">🛡️ 挑戰難度</div>
             <div class="option-group">
                 <button id="diff-1" class="opt-btn active" onclick="setSetting('diff', 1)">簡單</button>
                 <button id="diff-2" class="opt-btn" onclick="setSetting('diff', 2)">普通</button>
@@ -70,7 +69,7 @@
             </div>
         </div>
 
-        <button id="start-btn" class="start-btn" disabled onclick="handleStart()">加速載入中...</button>
+        <button id="start-btn" class="start-btn" disabled onclick="handleStart()">資源載入中...</button>
     </div>
 
     <div id="ui-layer">
@@ -87,13 +86,18 @@
         let obstacles = [], decor = [], streetLightModel = null;
         let obsCarModels = {}, decorPool = { 0: [], 1: [], 2: [], 3: [] };
         let policeLightR, policeLightB, lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
-        let currentSpeed = 1.0, hp = 100, settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
+        let currentSpeed = 1.0, hp = 100;
+        
+        // 💡 預設值鎖定，防止點擊無反應
+        let settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
         let coreLoaded = { car: false, light: false }, peer = null, activeConn = null;
 
         function setSetting(type, val) {
             settings[type] = val;
             document.querySelectorAll(`[id^="${type}-"]`).forEach(btn => btn.classList.remove('active'));
-            document.getElementById(`${type}-${val}`).classList.add('active');
+            const target = document.getElementById(`${type}-${val}`);
+            if(target) target.classList.add('active');
+            
             if (type === 'ctrl') {
                 document.getElementById('remote-info').style.display = (val === 'remote') ? 'block' : 'none';
                 if (val === 'remote') initPeerAsPC();
@@ -108,9 +112,9 @@
             peer = new Peer(randomID);
             peer.on('open', id => document.getElementById('my-id').innerText = id);
             peer.on('connection', c => {
-                if (activeConn) { c.on('open', () => { c.send({ type: 'error', msg: '已有操控者' }); setTimeout(() => c.close(), 500); }); return; }
+                if (activeConn) { c.on('open', () => c.close()); return; }
                 activeConn = c;
-                document.getElementById('my-id').innerText = "手機連線中！";
+                document.getElementById('my-id').innerText = "已連線！";
                 c.on('data', data => { if (data.type === 'tilt' && gameStarted) handleTilt(data.value); });
                 c.on('close', () => { activeConn = null; document.getElementById('my-id').innerText = randomID; });
             });
@@ -118,13 +122,11 @@
 
         function connectToPC() {
             const targetID = document.getElementById('peer-id-input').value;
-            if(!targetID) return alert("請輸入 ID");
             peer = new Peer();
             peer.on('open', () => {
                 const conn = peer.connect(targetID);
                 conn.on('open', () => {
-                    document.getElementById('conn-status').innerText = "連線成功！";
-                    document.getElementById('tilt-hint').style.display = 'block';
+                    document.getElementById('conn-status').innerText = "已成功連線電腦！";
                     window.addEventListener('deviceorientation', e => conn.send({ type: 'tilt', value: e.gamma }));
                 });
             });
@@ -136,26 +138,36 @@
         }
 
         async function handleStart() {
-            if (settings.ctrl === 'tilt' && typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
-                try { await DeviceOrientationEvent.requestPermission(); } catch (e) {}
-            }
-            document.getElementById('bgm').play().catch(e => {});
-            gameStarted = true;
-            document.getElementById('start-screen').style.display = 'none';
-            document.getElementById('ui-layer').style.display = 'block';
-            if (settings.mode === 'easy') { document.getElementById('hp-container').style.display = 'block'; hp = 100; updateHPBar(); }
-            currentSpeed = 0.8 + (settings.diff * 0.4); 
-            initControls(); animate();
-            setInterval(() => {
-                if(gameStarted) {
-                    score++; currentSpeed += 0.002;
-                    document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0');
-                    document.getElementById('speedo').innerText = Math.floor(currentSpeed * 80) + " KM/H";
-                    updateSeasons();
+            try {
+                if (settings.ctrl === 'tilt' && typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
+                    await DeviceOrientationEvent.requestPermission();
                 }
-            }, 100);
-            setInterval(createObstacle, 1100 - (settings.diff * 100));
-            setInterval(createPairs, 500);
+                document.getElementById('bgm').play().catch(() => {});
+                gameStarted = true;
+                document.getElementById('start-screen').style.display = 'none';
+                document.getElementById('ui-layer').style.display = 'block';
+                
+                if (settings.mode === 'easy') {
+                    document.getElementById('hp-container').style.display = 'block';
+                    hp = 100;
+                    updateHPBar();
+                }
+                
+                currentSpeed = 0.8 + (settings.diff * 0.4); 
+                initControls(); 
+                animate();
+                
+                setInterval(() => {
+                    if(gameStarted) {
+                        score++; currentSpeed += 0.002;
+                        document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0');
+                        document.getElementById('speedo').innerText = Math.floor(currentSpeed * 80) + " KM/H";
+                        updateSeasons();
+                    }
+                }, 100);
+                setInterval(createObstacle, 1100 - (settings.diff * 100));
+                setInterval(createPairs, 500);
+            } catch(e) { console.error(e); }
         }
 
         function init3D() {
@@ -185,9 +197,12 @@
             loadTree('birch_trees_pack__ps1_low_poly.glb', [0, 1]); loadTree('pine_trees_pack__ps1_low_poly.glb', [2]); loadTree('snowy_pine_trees_pack__ps1_low_poly.glb', [3]);
 
             camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
+            
+            // 💡 5秒強制開啟，預防載入卡死
+            setTimeout(() => { if(document.getElementById('start-btn').disabled) checkCoreReady(true); }, 5000);
         }
 
-        function checkCoreReady() { if(coreLoaded.car && coreLoaded.light) { document.getElementById('start-btn').disabled = false; document.getElementById('start-btn').innerText = "進入賽道"; } }
+        function checkCoreReady(force = false) { if((coreLoaded.car && coreLoaded.light) || force) { const btn = document.getElementById('start-btn'); btn.disabled = false; btn.innerText = "進入賽道"; } }
 
         function createObstacle() {
             const keys = Object.keys(obsCarModels); if (!gameStarted || keys.length === 0) return;
@@ -229,7 +244,6 @@
             obstacles.forEach((obs, i) => {
                 obs.position.z += currentSpeed;
                 if (Math.abs(car.position.z - obs.position.z) < 2.0 && Math.abs(car.position.x - obs.position.x) < 1.5) {
-                    document.getElementById('crashSound').play();
                     if (settings.mode === 'easy') { hp -= 34; updateHPBar(); scene.remove(obs); obstacles.splice(i, 1); if (hp <= 0) endGame(); } else endGame();
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
@@ -238,7 +252,7 @@
         }
 
         function updateHPBar() { document.getElementById('hp-bar').style.width = hp + "%"; }
-        function endGame() { gameStarted = false; setTimeout(() => { alert("💥 GG！得分: " + score); location.reload(); }, 100); }
+        function endGame() { gameStarted = false; setTimeout(() => { alert("💥 任務結束！得分: " + score); location.reload(); }, 100); }
         function updateSeasons() {
             const idx = Math.floor(score / 200) % 4;
             const sky = [0x87CEEB, 0x00BFFF, 0xFFA500, 0xE0F7FA], grass = [0x7cfc00, 0x228b22, 0xdaa520, 0xffffff];
