@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>賽車小遊戲-亡命飆速 (操控完全修復版)</title>
+    <title>賽車小遊戲-亡命飆速 (極速飆飆版)</title>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: 'Segoe UI', Arial, sans-serif; touch-action: none; }
@@ -116,7 +116,7 @@
             peer.on('open', id => document.getElementById('my-id').innerText = id);
             peer.on('connection', c => {
                 activeConn = c;
-                document.getElementById('my-id').innerText = "✅ 已連線";
+                document.getElementById('my-id').innerText = "✅ 手機已連線";
                 c.on('data', data => {
                     if (data.type === 'tilt' && settings.ctrl === 'remTilt') handleTilt(data.value);
                     if (data.type === 'touch' && settings.ctrl === 'remTouch') {
@@ -181,8 +181,26 @@
             if (settings.mode === 'easy') { document.getElementById('hp-container').style.display = 'block'; hp = 100; updateHPBar(); }
             document.getElementById('bgm').play().catch(()=>{});
             gameStarted = true;
-            setInterval(() => { if(gameStarted) { score++; currentSpeed += 0.002; document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0'); document.getElementById('speedo').innerText = Math.floor(currentSpeed * 80) + " KM/H"; updateSeasons(); } }, 100);
-            setInterval(createObstacle, 1000);
+            
+            // 💡 極速版物理速度參數（視覺變快，數字合理）
+            const startSpeeds = [0, 1.8, 2.5, 3.2]; // 物理移動大幅加快
+            const accelRates = [0, 0.003, 0.006, 0.012]; // 加速度感增強
+            currentSpeed = startSpeeds[settings.diff];
+
+            setInterval(() => { 
+                if(gameStarted) { 
+                    score++; 
+                    currentSpeed += accelRates[settings.diff]; 
+                    document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0'); 
+                    
+                    // 💡 時速顯示修正：顯示數字 = 物理速度 / 2.2，這樣雖然跑很快，顯示數字依然在 80~180 之間
+                    document.getElementById('speedo').innerText = Math.floor(currentSpeed * 40) + " KM/H"; 
+                    updateSeasons(); 
+                } 
+            }, 100);
+
+            const obstacleRates = [0, 1000, 700, 450]; // 障礙物生成頻率同步加快
+            setInterval(createObstacle, obstacleRates[settings.diff]);
             setInterval(createPairs, 500);
             initControls();
         }
@@ -237,19 +255,9 @@
         }
 
         function initControls() {
-            window.addEventListener('keydown', e => { 
-                if (e.key === 'ArrowLeft') moveLane(-1); 
-                if (e.key === 'ArrowRight') moveLane(1); 
-            });
-            window.addEventListener('touchstart', e => { 
-                if (!gameStarted || settings.ctrl !== 'touch') return; 
-                if (e.touches[0].clientX < window.innerWidth / 2) moveLane(-1); 
-                else moveLane(1); 
-            });
-            window.addEventListener('deviceorientation', e => { 
-                if (!gameStarted || settings.ctrl !== 'tilt') return; 
-                handleTilt(e.gamma); 
-            });
+            window.addEventListener('keydown', e => { if (e.key === 'ArrowLeft') moveLane(-1); if (e.key === 'ArrowRight') moveLane(1); });
+            window.addEventListener('touchstart', e => { if (!gameStarted || settings.ctrl !== 'touch') return; if (e.touches[0].clientX < window.innerWidth / 2) moveLane(-1); else moveLane(1); });
+            window.addEventListener('deviceorientation', e => { if (!gameStarted || settings.ctrl !== 'tilt') return; handleTilt(e.gamma); });
         }
         window.onload = init3D;
     </script>
