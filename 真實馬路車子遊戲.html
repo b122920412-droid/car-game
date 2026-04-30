@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>賽車小遊戲-亡命飆速 (報告優化穩定版)</title>
+    <title>賽車小遊戲-亡命飆速 </title>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: 'Segoe UI', Arial, sans-serif; touch-action: none; }
@@ -36,7 +36,7 @@
         <p id="conn-status">輸入電腦上的 4 位 ID</p>
         <input type="text" id="peer-id-input" placeholder="ID" maxlength="4">
         <button class="opt-btn active" style="font-size:18px; padding: 12px 30px;" onclick="connectToPC()">開始連線</button>
-        <p id="tilt-hint" style="display:none; color:#00ffcc; margin-top:20px;">✅ 連線成功！<br>請將手機水平橫放，左右傾斜控制。</p>
+        <p id="tilt-hint" style="display:none; color:#00ffcc; margin-top:20px;">✅ 連線成功！<br>請利用手機左右傾斜控制。</p>
     </div>
 
     <div id="start-screen">
@@ -237,7 +237,7 @@
         }
 
         function updateHPBar() { document.getElementById('hp-bar').style.width = hp + "%"; }
-        function endGame() { gameStarted = false; setTimeout(() => { alert("💥 任務結束！得分: " + score); location.reload(); }, 100); }
+        function endGame() { gameStarted = false; setTimeout(() => { alert("💥 Game Over！得分: " + score); location.reload(); }, 100); }
         function updateSeasons() {
             const idx = Math.floor(score / 200) % 4;
             const sky = [0x87CEEB, 0x00BFFF, 0xFFA500, 0xE0F7FA], grass = [0x7cfc00, 0x228b22, 0xdaa520, 0xffffff];
