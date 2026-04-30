@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>賽車小遊戲-亡命飆速 (操控全分離版)</title>
+    <title>賽車小遊戲-亡命飆速 </title>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: 'Segoe UI', Arial, sans-serif; touch-action: none; }
@@ -198,7 +198,7 @@
             obstacles.forEach((obs, i) => {
                 obs.position.z += currentSpeed;
                 if (car && Math.abs(car.position.z - obs.position.z) < 2.0 && Math.abs(car.position.x - obs.position.x) < 1.5) {
-                    gameStarted = false; alert("💥 任務結束！得分: " + score); location.reload();
+                    gameStarted = false; alert("💥 Game Over！得分: " + score); location.reload();
                 }
                 if (obs.position.z > 40) { scene.remove(obs); obstacles.splice(i, 1); }
             });
