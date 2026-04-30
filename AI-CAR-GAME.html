@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>賽車小遊戲-亡命飆速 (極速飆飆版)</title>
+    <title>賽車小遊戲-亡命飆速 (爆閃燈修復+觸控優化版)</title>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: 'Segoe UI', Arial, sans-serif; touch-action: none; }
@@ -11,7 +11,7 @@
         .title { font-size: 56px; font-weight: 900; letter-spacing: 6px; color: #fff; text-shadow: 0 0 30px #007bff; margin-bottom: 5px; }
         .warning-text { color: #ff4444; font-weight: bold; margin-bottom: 15px; letter-spacing: 2px; animation: blink 1.2s infinite; font-size: 18px; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-        .setting-group { margin: 8px 0; display: flex; flex-direction: column; align-items: center; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 20px; width: 420px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
+        .setting-group { margin: 8px 0; display: flex; flex-direction: column; align-items: center; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 20px; width: 440px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
         .setting-label { font-size: 14px; color: #00d2ff; margin-bottom: 8px; font-weight: bold; }
         .option-group { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
         .opt-btn { padding: 10px 14px; border: 1px solid #007bff; background: rgba(0, 123, 255, 0.1); color: white; border-radius: 50px; cursor: pointer; transition: 0.3s; font-size: 12px; }
@@ -43,7 +43,8 @@
             <div class="touch-btn" style="background:rgba(255,0,0,0.1);" onpointerdown="sendRemoteCmd('L')">◀</div>
             <div class="touch-btn" style="background:rgba(0,255,0,0.1);" onpointerdown="sendRemoteCmd('R')">▶</div>
         </div>
-        <p id="tilt-msg" style="display:none; color:#00ffcc; font-size:20px; margin-top:30px;">✅ 連線成功！<br>左右傾斜手機控制</p>
+        <!-- 💡 動態提示文字 -->
+        <p id="remote-hint" style="display:none; color:#00ffcc; font-size:20px; margin-top:30px;">✅ 連線成功！</p>
     </div>
 
     <div id="start-screen">
@@ -96,7 +97,7 @@
         let gameStarted = false, score = 0, currentSpeed = 1.0, hp = 100;
         let lanes = [-3.5, 0, 3.5], currentLaneIndex = 1, targetX = lanes[1];
         let obstacles = [], decor = [], settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
-        let peer = null, activeConn = null;
+        let policeLightR, policeLightB, peer = null, activeConn = null;
 
         function updateSetting(type, val) {
             settings[type] = val;
@@ -111,12 +112,14 @@
 
         function initPeerAsPC() {
             if (peer) return;
-            const randomID = Math.floor(1000 + Math.random() * 8999).toString();
-            peer = new Peer(randomID);
-            peer.on('open', id => document.getElementById('my-id').innerText = id);
+            const id = Math.floor(1000 + Math.random() * 8999).toString();
+            peer = new Peer(id);
+            peer.on('open', resId => document.getElementById('my-id').innerText = resId);
             peer.on('connection', c => {
                 activeConn = c;
                 document.getElementById('my-id').innerText = "✅ 手機已連線";
+                // 💡 連線成功後告訴手機現在是什麼模式
+                c.on('open', () => c.send({ type: 'mode', value: settings.ctrl }));
                 c.on('data', data => {
                     if (data.type === 'tilt' && settings.ctrl === 'remTilt') handleTilt(data.value);
                     if (data.type === 'touch' && settings.ctrl === 'remTouch') {
@@ -133,11 +136,19 @@
                 activeConn = peer.connect(targetID);
                 activeConn.on('open', () => {
                     document.getElementById('setup-area').style.display = 'none';
-                    window.addEventListener('deviceorientation', e => {
-                        activeConn.send({ type: 'tilt', value: e.gamma });
-                        document.getElementById('tilt-msg').style.display = 'block';
+                    activeConn.on('data', data => {
+                        if(data.type === 'mode') {
+                            const hint = document.getElementById('remote-hint');
+                            if(data.value === 'remTilt') {
+                                hint.innerHTML = "✅ 連線成功！<br>請左右傾斜手機控制";
+                                window.addEventListener('deviceorientation', e => activeConn.send({ type: 'tilt', value: e.gamma }));
+                            } else {
+                                hint.innerHTML = "✅ 連線成功！<br>請點擊螢幕兩側控制";
+                                document.getElementById('touch-controller').style.display = 'flex';
+                            }
+                            hint.style.display = 'block';
+                        }
                     });
-                    document.getElementById('touch-controller').style.display = 'flex';
                 });
             });
         }
@@ -160,6 +171,10 @@
             road.rotation.x = -Math.PI / 2; scene.add(road);
             grassPlane = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshPhongMaterial({ color: 0x7cfc00 }));
             grassPlane.rotation.x = -Math.PI / 2; grassPlane.position.y = -0.15; scene.add(grassPlane);
+
+            // 💡 爆閃燈初始化
+            policeLightR = new THREE.PointLight(0xff0000, 0, 50); policeLightB = new THREE.PointLight(0x0000ff, 0, 50);
+            scene.add(policeLightR, policeLightB);
             
             const loader = new THREE.GLTFLoader();
             loader.load('car.glb', (g) => { car = g.scene; car.scale.set(4.5, 4.5, 4.5); scene.add(car); car.position.z = 15; });
@@ -182,25 +197,12 @@
             document.getElementById('bgm').play().catch(()=>{});
             gameStarted = true;
             
-            // 💡 極速版物理速度參數（視覺變快，數字合理）
-            const startSpeeds = [0, 1.8, 2.5, 3.2]; // 物理移動大幅加快
-            const accelRates = [0, 0.003, 0.006, 0.012]; // 加速度感增強
+            const startSpeeds = [0, 1.8, 2.5, 3.2]; 
+            const accelRates = [0, 0.003, 0.006, 0.012]; 
             currentSpeed = startSpeeds[settings.diff];
 
-            setInterval(() => { 
-                if(gameStarted) { 
-                    score++; 
-                    currentSpeed += accelRates[settings.diff]; 
-                    document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0'); 
-                    
-                    // 💡 時速顯示修正：顯示數字 = 物理速度 / 2.2，這樣雖然跑很快，顯示數字依然在 80~180 之間
-                    document.getElementById('speedo').innerText = Math.floor(currentSpeed * 40) + " KM/H"; 
-                    updateSeasons(); 
-                } 
-            }, 100);
-
-            const obstacleRates = [0, 1000, 700, 450]; // 障礙物生成頻率同步加快
-            setInterval(createObstacle, obstacleRates[settings.diff]);
+            setInterval(() => { if(gameStarted) { score++; currentSpeed += accelRates[settings.diff]; document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0'); document.getElementById('speedo').innerText = Math.floor(currentSpeed * 40) + " KM/H"; updateSeasons(); } }, 100);
+            setInterval(createObstacle, [0, 1000, 700, 450][settings.diff]);
             setInterval(createPairs, 500);
             initControls();
         }
@@ -236,7 +238,16 @@
         }
 
         function animate() {
-            if(car) { car.position.x += (targetX - car.position.x) * 0.15; car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; }
+            if(car) { 
+                car.position.x += (targetX - car.position.x) * 0.15; 
+                car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
+                // 💡 爆閃燈閃爍邏輯修復
+                let flash = (Math.floor(Date.now() / 150) % 2);
+                policeLightR.intensity = flash === 0 ? 80 : 0; 
+                policeLightB.intensity = flash === 1 ? 80 : 0;
+                policeLightR.position.set(car.position.x - 0.7, 4.5, car.position.z);
+                policeLightB.position.set(car.position.x + 0.7, 4.5, car.position.z);
+            }
             decor.forEach((d, i) => { d.position.z += currentSpeed; if(d.position.z > 40) { scene.remove(d); decor.splice(i, 1); }});
             obstacles.forEach((obs, i) => {
                 obs.position.z += currentSpeed;
