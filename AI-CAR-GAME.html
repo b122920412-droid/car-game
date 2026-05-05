@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>賽車小遊戲-亡命飆速</title>
+    <title>賽車小遊戲-亡命飆速 (連線強化修復版)</title>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: 'Segoe UI', Arial, sans-serif; touch-action: none; }
@@ -34,7 +34,7 @@
 
     <div id="controller-ui">
         <div id="setup-area">
-            <h2>遠端遙控器</h2>
+            <h2>手機遙控器</h2>
             <input type="text" id="peer-id-input" placeholder="電腦 ID" maxlength="4" style="padding:15px; font-size:20px; text-align:center; border-radius:10px; margin-bottom:20px;">
             <br>
             <button class="opt-btn active" style="font-size:20px; padding:15px 50px;" onclick="connectToPC()">連線</button>
@@ -57,7 +57,7 @@
                 <button id="ctrl-tilt" class="opt-btn" onclick="updateSetting('ctrl', 'tilt')">手機體感</button>
                 <button id="ctrl-remTilt" class="opt-btn" onclick="updateSetting('ctrl', 'remTilt')">遙控(體感)</button>
                 <button id="ctrl-remTouch" class="opt-btn" onclick="updateSetting('ctrl', 'remTouch')">遙控(觸控)</button>
-                <button id="ctrl-as-remote" class="opt-btn" style="border-color:#ff9900" onclick="setupAsController()">遠端遙控器</button>
+                <button id="ctrl-as-remote" class="opt-btn" style="border-color:#ff9900" onclick="setupAsController()">我是遙控器</button>
             </div>
             <div id="remote-info">電腦 ID: <span id="my-id" style="color:#fff; font-weight:bold; font-size:20px;">...</span></div>
         </div>
@@ -98,8 +98,6 @@
         let obstacles = [], decor = [], settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
         let policeLightR, policeLightB, peer = null, activeConn = null;
 
-        const peerConfig = { config: { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] } };
-
         function updateSetting(type, val) {
             settings[type] = val;
             document.querySelectorAll(`[id^="${type}-"]`).forEach(btn => btn.classList.remove('active'));
@@ -114,12 +112,14 @@
         function initPeerAsPC() {
             if (peer) return;
             const id = Math.floor(1000 + Math.random() * 8999).toString();
-            peer = new Peer(id, peerConfig);
+            peer = new Peer(id);
             peer.on('open', resId => document.getElementById('my-id').innerText = resId);
             peer.on('connection', c => {
                 activeConn = c;
                 document.getElementById('my-id').innerText = "✅ 手機已連線";
-                c.on('open', () => c.send({ type: 'mode', value: settings.ctrl }));
+                // 💡 確保連線當下就同步模式
+                setTimeout(() => { if(activeConn) activeConn.send({ type: 'mode', value: settings.ctrl }); }, 500);
+                
                 c.on('data', data => {
                     if (data.type === 'tilt' && settings.ctrl === 'remTilt') handleTilt(data.value);
                     if (data.type === 'touch' && settings.ctrl === 'remTouch') {
@@ -131,17 +131,21 @@
 
         function connectToPC() {
             const targetID = document.getElementById('peer-id-input').value;
-            peer = new Peer(peerConfig);
+            if(!targetID) return;
+            peer = new Peer();
             peer.on('open', () => {
-                activeConn = peer.connect(targetID);
-                activeConn.on('open', () => {
+                const conn = peer.connect(targetID);
+                conn.on('open', () => {
+                    activeConn = conn;
                     document.getElementById('setup-area').style.display = 'none';
-                    activeConn.on('data', data => {
+                    conn.on('data', data => {
                         if(data.type === 'mode') {
                             const hint = document.getElementById('remote-hint');
                             if(data.value === 'remTilt') {
                                 hint.innerHTML = "✅ 連線成功！<br>請左右傾斜手機控制";
-                                window.addEventListener('deviceorientation', e => activeConn.send({ type: 'tilt', value: e.gamma }));
+                                window.addEventListener('deviceorientation', e => {
+                                    if(activeConn) activeConn.send({ type: 'tilt', value: e.gamma });
+                                });
                             } else {
                                 hint.innerHTML = "✅ 連線成功！<br>請點擊螢幕兩側控制";
                                 document.getElementById('touch-controller').style.display = 'flex';
@@ -171,17 +175,14 @@
             road.rotation.x = -Math.PI / 2; scene.add(road);
             grassPlane = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshPhongMaterial({ color: 0x7cfc00 }));
             grassPlane.rotation.x = -Math.PI / 2; grassPlane.position.y = -0.15; scene.add(grassPlane);
-
             policeLightR = new THREE.PointLight(0xff0000, 0, 50); policeLightB = new THREE.PointLight(0x0000ff, 0, 50);
             scene.add(policeLightR, policeLightB);
-            
             const loader = new THREE.GLTFLoader();
             loader.load('car.glb', (g) => { car = g.scene; car.scale.set(4.5, 4.5, 4.5); scene.add(car); car.position.z = 15; });
             loader.load('nintendogs_street_light.glb', (g) => { streetLightModel = g.scene; });
             ['car1.glb','car2.glb','car3.glb','car4.glb','car5.glb','car6.glb'].forEach(f => { loader.load(f, (g) => { obsCarModels[f] = g.scene; }); });
             const loadTree = (f, idxs) => { loader.load(f, (g) => { g.scene.traverse(n => { if(n.isMesh) idxs.forEach(i => decorPool[i].push(n.clone())); }); }); };
             loadTree('birch_trees_pack__ps1_low_poly.glb', [0, 1]); loadTree('pine_trees_pack__ps1_low_poly.glb', [2]); loadTree('snowy_pine_trees_pack__ps1_low_poly.glb', [3]);
-
             camera.position.set(0, 8, 28); camera.lookAt(0, 2, 0);
             renderer.setAnimationLoop(() => { if(gameStarted) animate(); renderer.render(scene, camera); });
         }
@@ -195,11 +196,9 @@
             if (settings.mode === 'easy') { document.getElementById('hp-container').style.display = 'block'; hp = 100; updateHPBar(); }
             document.getElementById('bgm').play().catch(()=>{});
             gameStarted = true;
-            
             const startSpeeds = [0, 1.8, 2.5, 3.2]; 
             const accelRates = [0, 0.003, 0.006, 0.012]; 
             currentSpeed = startSpeeds[settings.diff];
-
             setInterval(() => { if(gameStarted) { score++; currentSpeed += accelRates[settings.diff]; document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0'); document.getElementById('speedo').innerText = Math.floor(currentSpeed * 40) + " KM/H"; updateSeasons(); } }, 100);
             setInterval(createObstacle, [0, 1000, 700, 450][settings.diff]);
             setInterval(createPairs, 500);
