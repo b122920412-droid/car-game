@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>賽車小遊戲-亡命飆速 </title>
+    <title>賽車小遊戲-亡命飆速</title>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: 'Segoe UI', Arial, sans-serif; touch-action: none; }
@@ -43,7 +43,6 @@
             <div class="touch-btn" style="background:rgba(255,0,0,0.1);" onpointerdown="sendRemoteCmd('L')">◀</div>
             <div class="touch-btn" style="background:rgba(0,255,0,0.1);" onpointerdown="sendRemoteCmd('R')">▶</div>
         </div>
-        <!-- 💡 動態提示文字 -->
         <p id="remote-hint" style="display:none; color:#00ffcc; font-size:20px; margin-top:30px;">✅ 連線成功！</p>
     </div>
 
@@ -99,6 +98,8 @@
         let obstacles = [], decor = [], settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
         let policeLightR, policeLightB, peer = null, activeConn = null;
 
+        const peerConfig = { config: { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] } };
+
         function updateSetting(type, val) {
             settings[type] = val;
             document.querySelectorAll(`[id^="${type}-"]`).forEach(btn => btn.classList.remove('active'));
@@ -113,12 +114,11 @@
         function initPeerAsPC() {
             if (peer) return;
             const id = Math.floor(1000 + Math.random() * 8999).toString();
-            peer = new Peer(id);
+            peer = new Peer(id, peerConfig);
             peer.on('open', resId => document.getElementById('my-id').innerText = resId);
             peer.on('connection', c => {
                 activeConn = c;
                 document.getElementById('my-id').innerText = "✅ 手機已連線";
-                // 💡 連線成功後告訴手機現在是什麼模式
                 c.on('open', () => c.send({ type: 'mode', value: settings.ctrl }));
                 c.on('data', data => {
                     if (data.type === 'tilt' && settings.ctrl === 'remTilt') handleTilt(data.value);
@@ -131,7 +131,7 @@
 
         function connectToPC() {
             const targetID = document.getElementById('peer-id-input').value;
-            peer = new Peer();
+            peer = new Peer(peerConfig);
             peer.on('open', () => {
                 activeConn = peer.connect(targetID);
                 activeConn.on('open', () => {
@@ -172,7 +172,6 @@
             grassPlane = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshPhongMaterial({ color: 0x7cfc00 }));
             grassPlane.rotation.x = -Math.PI / 2; grassPlane.position.y = -0.15; scene.add(grassPlane);
 
-            // 💡 爆閃燈初始化
             policeLightR = new THREE.PointLight(0xff0000, 0, 50); policeLightB = new THREE.PointLight(0x0000ff, 0, 50);
             scene.add(policeLightR, policeLightB);
             
@@ -197,11 +196,11 @@
             document.getElementById('bgm').play().catch(()=>{});
             gameStarted = true;
             
-            const startSpeeds = [0, 1.8, 2.5, 3.0]; 
-            const accelRates = [0, 0.003, 0.006, 0.009]; 
+            const startSpeeds = [0, 1.8, 2.5, 3.2]; 
+            const accelRates = [0, 0.003, 0.006, 0.012]; 
             currentSpeed = startSpeeds[settings.diff];
 
-            setInterval(() => { if(gameStarted) { score++; currentSpeed += accelRates[settings.diff]; document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0'); document.getElementById('speedo').innerText = Math.floor(currentSpeed * 50) + " KM/H"; updateSeasons(); } }, 100);
+            setInterval(() => { if(gameStarted) { score++; currentSpeed += accelRates[settings.diff]; document.getElementById('scoreDisplay').innerText = score.toString().padStart(5, '0'); document.getElementById('speedo').innerText = Math.floor(currentSpeed * 40) + " KM/H"; updateSeasons(); } }, 100);
             setInterval(createObstacle, [0, 1000, 700, 450][settings.diff]);
             setInterval(createPairs, 500);
             initControls();
@@ -241,7 +240,6 @@
             if(car) { 
                 car.position.x += (targetX - car.position.x) * 0.15; 
                 car.rotation.y = (targetX - car.position.x) * 0.1 + Math.PI; 
-                // 💡 爆閃燈閃爍邏輯修復
                 let flash = (Math.floor(Date.now() / 150) % 2);
                 policeLightR.intensity = flash === 0 ? 80 : 0; 
                 policeLightB.intensity = flash === 1 ? 80 : 0;
