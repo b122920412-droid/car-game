@@ -283,13 +283,13 @@
                             if(data.value === 'remTilt') {
 
                                 hint.innerHTML = "✅ 連線成功！<br>請左右傾斜手機控制";
-
+                                alert("請左右傾斜手機控制");
                                 window.addEventListener('deviceorientation', e => activeConn.send({ type: 'tilt', value: e.gamma }));
 
                             } else {
 
                                 hint.innerHTML = "✅ 連線成功！<br>請點擊螢幕兩側控制";
-
+                                alert("請點擊螢幕兩側控制");
                                 document.getElementById('touch-controller').style.display = 'flex';
 
                             }
