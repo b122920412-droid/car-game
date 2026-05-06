@@ -10,7 +10,7 @@
 
     <title>賽車小遊戲-亡命飆速 </title>
 
-    <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 
     <style>
 
@@ -198,6 +198,10 @@
 
         let policeLightR, policeLightB, peer = null, activeConn = null;
 
+        let client = null;
+        let topic = "";
+        let roomID = "";
+        let isPC = false;
 
 
         function updateSetting(type, val) {
@@ -212,7 +216,7 @@
 
             document.getElementById('remote-info').style.display = isRemote ? 'block' : 'none';
 
-            if (isRemote) initPeerAsPC();
+            if (isRemote) initMQTTasPC();
 
         }
 
@@ -222,124 +226,142 @@
 
 
 
-        function initPeerAsPC() {
+		function initMQTTasPC() {
+			if (client) return;
 
-            if (peer) return;
+			isPC = true;
 
-            const id = Math.floor(1000 + Math.random() * 8999).toString();
+			// 產生 4 位數房間
+			roomID = Math.floor(1000 + Math.random() * 8999).toString();
+			topic = "racing-game/" + roomID;
 
-            peer = new Peer(id);
+			document.getElementById('my-id').innerText = roomID;
 
-            peer.on('open', resId => document.getElementById('my-id').innerText = resId);
+			client = mqtt.connect("wss://mqttgo.io:8084/mqtt")
+			  
 
-            peer.on('connection', c => {
+			client.on("connect", () => {
+				console.log("✅ PC 已連線 MQTT");
+				client.subscribe(topic);
+				setInterval(() => {
+					if (!gameStarted) { // 遊戲開始前持續廣播模式設定
+						client.publish(topic, JSON.stringify({ 
+							type: 'mode', 
+							value: settings.ctrl 
+						}));
+					}
+				}, 2000);
+			});
 
-                activeConn = c;
+			client.on("message", (t, msg) => {
+				const data = JSON.parse(msg.toString());
+				
+				if (data.type === "join" || data.type === "tilt" || data.type === "touch") {
+					const idDisplay = document.getElementById('my-id');
+					idDisplay.innerText = "✅ 手機已連線";
+					idDisplay.style.color = "#00ffcc";
+				}
 
-                document.getElementById('my-id').innerText = "✅ 手機已連線";
+				if (data.type === "tilt" && settings.ctrl === "remTilt") {
+					handleTilt(data.value);
+				}
 
-                // 💡 連線成功後告訴手機現在是什麼模式
+				if (data.type === "touch" && settings.ctrl === "remTouch") {
+					if (data.value === "L") moveLane(-1);
+					else moveLane(1);
+				}
+			});
 
-                c.on('open', () => c.send({ type: 'mode', value: settings.ctrl }));
-
-                c.on('data', data => {
-
-                    if (data.type === 'tilt' && settings.ctrl === 'remTilt') handleTilt(data.value);
-
-                    if (data.type === 'touch' && settings.ctrl === 'remTouch') {
-
-                        if(data.value === 'L') moveLane(-1); else moveLane(1);
-
-                    }
-
-                });
-
-            });
-
-        }
-
-
-
-        // 💡 加入 STUN 配置，增加 iPhone 穿透行動網路連線成功率
-const peerConfig = { 
-    config: { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] } 
-};
-
-async function connectToPC() {
-    const targetID = document.getElementById('peer-id-input').value;
-    if (!targetID) {
-        alert("請輸入電腦 ID");
-        return;
-    }
-
-    // 💡 重要：iOS 13+ 必須在點擊按鈕的第一時間請求陀螺儀權限
-    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        try {
-            const permission = await DeviceOrientationEvent.requestPermission();
-            if (permission !== 'granted') {
-                alert("你需要允許「動作與方向」權限才能使用體感控制喔！");
-                return;
-            }
-        } catch (error) {
-            console.error("權限請求錯誤:", error);
-        }
-    }
-
-    // 啟動 PeerJS
-    peer = new Peer(peerConfig);
-
-    peer.on('open', () => {
-        const conn = peer.connect(targetID);
-        activeConn = conn;
-
-        conn.on('open', () => {
-            // 隱藏輸入框
-            document.getElementById('setup-area').style.display = 'none';
-            
-            // 顯示成功文字
-            const hint = document.getElementById('remote-hint');
-            hint.style.display = 'block';
-
-            // 接收電腦端傳來的操控模式 (體感或觸控)
-            conn.on('data', data => {
-                if (data.type === 'mode') {
-                    if (data.value === 'remTilt') {
-                        hint.innerHTML = "✅ 連線成功！<br>請左右傾斜手機控制";
-                        // 註冊體感事件
-                        window.addEventListener('deviceorientation', e => {
-                            if (activeConn && activeConn.open) {
-                                activeConn.send({ type: 'tilt', value: e.gamma });
-                            }
-                        });
-                    } else {
-                        hint.innerHTML = "✅ 連線成功！<br>請點擊螢幕兩側控制";
-                        document.getElementById('touch-controller').style.display = 'flex';
-                    }
-                }
-            });
-        });
-
-        // 監聽斷線
-        conn.on('close', () => {
-            alert("與電腦的連線已斷開");
-            location.reload();
-        });
-    });
-
-    peer.on('error', err => {
-        if (err.type === 'peer-unavailable') {
-            alert("找不到電腦！請確認電腦上的 ID 是否正確。");
-        } else if (err.type === 'webrtc') {
-            alert("WebRTC 錯誤：請確認是否使用 HTTPS 開啟，且未使用 LINE 內建瀏覽器。");
-        } else {
-            alert("連線出錯了：" + err.type);
-        }
-    });
-}
+			client.on("error", err => {
+				console.error("MQTT error:", err);
+			});
+		}
 
 
 
-        function sendRemoteCmd(side) { if(activeConn) activeConn.send({ type: 'touch', value: side }); }
+		async function connectToPC() {
+			roomID = document.getElementById('peer-id-input').value;
+			if (!roomID) { alert("請輸入房間ID"); return; }
+
+			topic = "racing-game/" + roomID;
+
+		
+			if (typeof DeviceOrientationEvent !== 'undefined' &&
+				typeof DeviceOrientationEvent.requestPermission === 'function') {
+				try { await DeviceOrientationEvent.requestPermission(); } catch (e) {}
+			}
+
+			client = mqtt.connect("wss://mqttgo.io:8084/mqtt")
+
+			client.on("connect", () => {
+				console.log("📱 手機已連線 MQTT");
+				client.subscribe(topic);
+				document.getElementById('setup-area').style.display = 'none';
+				document.getElementById('remote-hint').style.display = 'block';
+				document.getElementById('remote-hint').innerText = "⏳ 等待 PC 確認模式...";
+				client.publish(topic, JSON.stringify({ type: "join", value: "mobile_ready" }));
+			});
+
+			client.on("message", (t, msg) => {
+				const data = JSON.parse(msg.toString());
+
+			
+				if (data.type === 'mode') {
+					const hint = document.getElementById('remote-hint');
+					
+					if (data.value === 'remTilt') {
+						hint.innerHTML = "✅ 體感模式<br>請傾斜手機控制";
+						document.getElementById('touch-controller').style.display = 'none';
+						
+				
+						window.addEventListener('deviceorientation', sendTiltData);
+					} else if (data.value === 'remTouch') {
+						hint.innerHTML = "✅ 觸控模式<br>請點擊左右按鈕";
+						document.getElementById('touch-controller').style.display = 'flex';
+						
+				
+						window.removeEventListener('deviceorientation', sendTiltData);
+					}
+				}
+				
+				if (data.type === 'game_over') {
+					// 做法 A：直接重新整理頁面（最乾淨，回到輸入 ID 的畫面）
+					alert("遊戲已結束，點擊確定回到主畫面");
+					location.reload(); 
+
+					/* 
+					// 做法 B：不重新整理，只切換 UI（如果你不想重新輸入 ID）
+					document.getElementById('remote-hint').style.display = 'none';
+					document.getElementById('touch-controller').style.display = 'none';
+					document.getElementById('setup-area').style.display = 'block'; // 顯示連線輸入框
+					window.removeEventListener('deviceorientation', sendTiltData); 
+					*/
+				}
+			});
+		}
+
+
+		function sendTiltData(e) {
+			const now = Date.now();
+			if (now - lastSend < 50) return; 
+			lastSend = now;
+			smooth = smooth * 0.8 + e.gamma * 0.2;
+			
+			client.publish(topic, JSON.stringify({
+				type: "tilt",
+				value: smooth
+			}), { qos: 0 });
+		}
+
+
+       function sendRemoteCmd(side) {
+			if (!client) return;
+
+			client.publish(topic, JSON.stringify({
+				type: "touch",
+				value: side
+			}), { qos: 1 });
+		}
 
         function moveLane(dir) { currentLaneIndex = Math.max(0, Math.min(2, currentLaneIndex + dir)); targetX = lanes[currentLaneIndex]; }
 
@@ -449,7 +471,7 @@ async function connectToPC() {
 
         function updateHPBar() { document.getElementById('hp-bar').style.width = hp + "%"; }
 
-        function endGame() { gameStarted = false; setTimeout(() => { alert("💥 Game Over！得分: " + score); location.reload(); }, 100); }
+        function endGame() { gameStarted = false; if (client && client.connected) {client.publish(topic, JSON.stringify({ type: "game_over" }));} setTimeout(() => { alert("💥 Game Over！得分: " + score); location.reload(); }, 100); }
 
 
 
@@ -562,6 +584,11 @@ async function connectToPC() {
         }
 
 
+      let lastSend = 0;
+      let smooth = 0;
+
+
+
 
         function initControls() {
 
@@ -569,7 +596,20 @@ async function connectToPC() {
 
             window.addEventListener('touchstart', e => { if (!gameStarted || settings.ctrl !== 'touch') return; if (e.touches[0].clientX < window.innerWidth / 2) moveLane(-1); else moveLane(1); });
 
-            window.addEventListener('deviceorientation', e => { if (!gameStarted || settings.ctrl !== 'tilt') return; handleTilt(e.gamma); });
+			window.addEventListener("deviceorientation", e => {
+				if (!client) return;
+
+				const now = Date.now();
+				if (now - lastSend < 50) return; // 限制頻率（20fps）
+				lastSend = now;
+
+				smooth = smooth * 0.8 + e.gamma * 0.2;
+
+				client.publish(topic, JSON.stringify({
+					type: "tilt",
+					value: smooth
+				}), { qos: 0 });
+			});
 
         }
 
