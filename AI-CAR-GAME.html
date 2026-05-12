@@ -124,16 +124,12 @@
             client = mqtt.connect("wss://mqttgo.io:8084/mqtt");
 
             client.on("connect", () => {
-                console.log("✅ PC 已連線 MQTT");
                 client.subscribe(topic);
                 setInterval(() => {
                     if (!gameStarted) {
-                        client.publish(topic, JSON.stringify({ 
-                            type: 'mode', 
-                            value: settings.ctrl 
-                        }));
+                        client.publish(topic, JSON.stringify({ type: 'mode', value: settings.ctrl }));
                     }
-                }, 2000);
+                }, 1000);
             });
 
             client.on("message", (t, msg) => {
@@ -162,7 +158,6 @@
             }
             client = mqtt.connect("wss://mqttgo.io:8084/mqtt");
             client.on("connect", () => {
-                console.log("📱 手機已連線 MQTT");
                 client.subscribe(topic);
                 document.getElementById('setup-area').style.display = 'none';
                 document.getElementById('remote-hint').style.display = 'block';
@@ -310,22 +305,20 @@
             });
 
             window.addEventListener("deviceorientation", e => {
-                // A. 本機直接玩 (手機體感模式)
+                // 1. 本機直接玩 (手機體感)
                 if (gameStarted && settings.ctrl === 'tilt') {
                     handleTilt(e.gamma);
                 }
 
-                // B. 發送 MQTT 資料 (當連線為遠端模式時)
-                if (!client || !client.connected) return;
-                const now = Date.now();
-                if (now - lastSend < 50) return;
-                lastSend = now;
-                smooth = smooth * 0.8 + e.gamma * 0.2;
-                
-                client.publish(topic, JSON.stringify({
-                    type: "tilt",
-                    value: smooth
-                }), { qos: 0 });
+                // 2. 作為遙控器 (連線模式)
+                // 💡 修正：遙控器不應受 gameStarted 限制，連線就發送
+                if (client && client.connected && !isPC) {
+                    const now = Date.now();
+                    if (now - lastSend < 50) return;
+                    lastSend = now;
+                    smooth = smooth * 0.8 + e.gamma * 0.2;
+                    client.publish(topic, JSON.stringify({ type: "tilt", value: smooth }), { qos: 0 });
+                }
             });
         }
         window.onload = init3D;
