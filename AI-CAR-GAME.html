@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>賽車小遊戲-亡命飆速 (體感遙控流暢優化版)</title>
+    <title>賽車小遊戲-亡命飆速 </title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
         html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; background: #000; font-family: 'Segoe UI', Arial, sans-serif; touch-action: none; }
@@ -25,7 +25,8 @@
         #remote-info { margin-top: 10px; font-size: 14px; color: #00ffcc; background: rgba(0,0,0,0.5); padding: 8px; border-radius: 10px; display: none; border: 1px solid #00ffcc; }
         #controller-ui { position: fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:10000; display:none; flex-direction:column; justify-content:center; align-items:center; color:#fff; text-align: center; }
         #touch-controller { position: absolute; top:0; left:0; width:100%; height:100%; display:none; z-index: 10; width: 100%; }
-        .touch-btn { width: 50%; height: 100%; display: flex; justify-content: center; align-items: center; font-size: 50px; font-weight: 900; }
+        /* 💡 這裡微調了 onpointerup，確保放開手指時會清除「連擊鎖定」 */
+        .touch-btn { width: 50%; height: 100%; display: flex; justify-content: center; align-items: center; font-size: 50px; font-weight: 900; user-select: none; }
     </style>
 </head>
 <body>
@@ -40,8 +41,8 @@
             <button class="opt-btn active" style="font-size:20px; padding:15px 50px;" onclick="connectToPC()">連線</button>
         </div>
         <div id="touch-controller">
-            <div class="touch-btn" style="background:rgba(255,0,0,0.1);" onpointerdown="sendRemoteCmd('L')">◀</div>
-            <div class="touch-btn" style="background:rgba(0,255,0,0.1);" onpointerdown="sendRemoteCmd('R')">▶</div>
+            <div class="touch-btn" style="background:rgba(255,0,0,0.1);" onpointerdown="sendRemoteCmd('L')" onpointerup="clearTouchLock()">◀</div>
+            <div class="touch-btn" style="background:rgba(0,255,0,0.1);" onpointerdown="sendRemoteCmd('R')" onpointerup="clearTouchLock()">▶</div>
         </div>
         <p id="remote-hint" style="display:none; color:#00ffcc; font-size:20px; margin-top:30px;">✅ 連線成功！</p>
     </div>
@@ -98,7 +99,8 @@
         let obstacles = [], decor = [], settings = { ctrl: 'touch', mode: 'hard', diff: 1 };
         let policeLightR, policeLightB, peer = null, activeConn = null;
         let client = null, topic = "", roomID = "", isPC = false, lastSend = 0, smooth = 0;
-        let lastTargetLane = 1; // 💡 優化：避免重複傳送相同車道指令
+        let lastTargetLane = 1; 
+        let isTouchLocked = false; // 💡 修正：防重複傳送的觸控鎖定狀態
 
         function updateSetting(type, val) {
             settings[type] = val;
@@ -133,11 +135,11 @@
                     idDisplay.innerText = "✅ 手機已連線";
                     idDisplay.style.color = "#00ffcc";
                 }
-                // 💡 電腦端接收優化：直接轉換為精確車道指令，不卡頓
                 if (data.type === "tilt" && settings.ctrl === "remTilt") {
                     currentLaneIndex = data.value;
                     targetX = lanes[currentLaneIndex];
                 }
+                // 💡 電腦端接收優化：收到觸控指令後，立刻平滑移動（不排隊堆積）
                 if (data.type === "touch" && settings.ctrl === "remTouch") {
                     if (data.value === "L") moveLane(-1); else moveLane(1);
                 }
@@ -180,18 +182,15 @@
             });
         }
 
-        // 💡 核心優化：手機端遙控體感防抖與動態車道預判機制
         function sendRemoteTilt(e) {
             if (!client || !client.connected || isPC) return;
             const now = Date.now();
-            if (now - lastSend < 60) return; // 💡 節流傳送頻率，避免網路塞車
+            if (now - lastSend < 60) return; 
             
-            // 計算目標車道 (防抖操作閾值 ±10 度)
             let targetLane = 1;
             if (e.gamma < -10) targetLane = 0;
             else if (e.gamma > 10) targetLane = 2;
 
-            // 💡 只有當車道真的「改變」時才發送 MQTT 封包，網路用量直接暴降 90%，完全不卡頓！
             if (targetLane !== lastTargetLane) {
                 lastSend = now;
                 lastTargetLane = targetLane;
@@ -199,9 +198,16 @@
             }
         }
 
+        // 💡 核心優化：觸控按鈕單次事件鎖定演算法
         function sendRemoteCmd(side) {
-            if (!client) return;
+            if (!client || isTouchLocked) return;
+            isTouchLocked = true; // 按下瞬間立刻鎖定，不管按多久都只發送這一次
             client.publish(topic, JSON.stringify({ type: "touch", value: side }), { qos: 1 });
+        }
+
+        // 💡 核心優化：手指抬起時釋放鎖定
+        function clearTouchLock() {
+            isTouchLocked = false;
         }
 
         function moveLane(dir) { currentLaneIndex = Math.max(0, Math.min(2, currentLaneIndex + dir)); targetX = lanes[currentLaneIndex]; }
